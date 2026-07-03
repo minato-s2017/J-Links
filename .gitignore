@@ -3,3 +3,9 @@ data/SCSS_F8T.F10T.json
 
 # ローカル作業用
 *.bak
+
+# アイコン作業用ソース・マスター（配布不要・ローカル保持のみ）
+icon/*.webp
+icon/logo-*-full.png
+icon/mark-*.png
+icon/favicon-16-*.png
