@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>鉄骨剛接合リスト</title>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- ===== パスワード（暗号データ復号）ゲート ===== -->
+<div id="authOverlay" class="auth-overlay">
+  <form id="authForm" class="auth-box" autocomplete="off">
+    <div class="auth-icon">🔒</div>
+    <h2>鉄骨剛接合リスト</h2>
+    <p class="auth-msg">パスワードを入力してください</p>
+    <input id="authPass" type="password" class="auth-input" placeholder="パスワード" autocomplete="off">
+    <label class="auth-remember"><input id="authRemember" type="checkbox" checked> この端末で次回から省略</label>
+    <button id="authBtn" type="submit" class="auth-btn">解除して開く</button>
+    <div id="authErr" class="auth-err"></div>
+  </form>
+</div>
+
+<header class="topbar">
+  <div class="topbar-title">
+    <span class="title-icon">⛓</span>
+    <div>
+      <h1>鉄骨剛接合リスト</h1>
+      <div class="proj-sub">プロジェクト: <input id="projName" placeholder="(任意)"> ・ <span id="dateSub">最終更新 …</span></div>
+    </div>
+  </div>
+  <div class="topbar-stats">
+    <button id="btnHistory" class="history-btn" title="過去の選択を呼び出す">履歴</button>
+    <button id="btnLock" class="history-btn" title="この端末の記憶を消してロック">🔒</button>
+    <span id="selCount" class="cnt">選択 0 件</span>
+  </div>
+</header>
+
+<div class="main3">
+
+  <!-- ===== 左: 絞り込み・入力 ===== -->
+  <aside class="col col-left">
+    <input id="searchBox" type="search" class="search-input" placeholder="🔍 断面・接合で検索（例: 400x200）">
+
+    <div class="seg" role="tablist">
+      <button class="seg-btn active" data-mode="ref" role="tab" aria-selected="true">継手参照</button>
+      <button class="seg-btn" data-mode="bh" role="tab" aria-selected="false">BH材 手動</button>
+    </div>
+
+    <!-- 継手参照モード -->
+    <div id="pane-ref" class="pane">
+      <!-- 4項目を横並び。全てピル選択。色(順に): 継手種別=青 / 母材鋼種=赤 / ボルト等級=緑 / ボルト径=黄 -->
+      <div class="filter-cols">
+        <div class="filter-col">
+          <label>継手種別</label>
+          <div class="pill-group pill-blue" id="d_type_pills"></div>
+        </div>
+        <div class="filter-col">
+          <label>母材鋼種</label>
+          <div class="pill-group pill-red" id="d_material_pills"></div>
+        </div>
+        <div class="filter-col">
+          <label>ボルト等級</label>
+          <div class="pill-group pill-green" id="d_grade_pills"></div>
+        </div>
+        <div class="filter-col">
+          <label>ボルト径</label>
+          <div class="pill-group pill-yellow" id="d_bolt_pills"></div>
+        </div>
+      </div>
+      <!-- 選択値は hidden で保持（検索/追加ロジックはそのまま値を読む） -->
+      <input type="hidden" id="d_family" value="">
+      <input type="hidden" id="d_grade" value="F10T">
+      <input type="hidden" id="d_type" value="beam">
+      <input type="hidden" id="d_material" value="SN400B">
+      <input type="hidden" id="d_bolt" value="M20">
+
+      <div class="frow">
+        <label>検索: Shape</label>
+        <div class="shape-search">
+          <input id="d_h" type="text" inputmode="decimal" placeholder="H">
+          <span class="x-sep">×</span>
+          <input id="d_b" type="text" inputmode="decimal" placeholder="B">
+          <span class="x-sep">×</span>
+          <input id="d_tw" type="text" inputmode="decimal" placeholder="t_w">
+          <span class="x-sep">×</span>
+          <input id="d_tf" type="text" inputmode="decimal" placeholder="t_f">
+        </div>
+      </div>
+
+      <div class="frow">
+        <label>Shape (断面)<br><small id="d_count" class="hit">該当: 0件</small></label>
+        <div class="shape-pick">
+          <button id="btnMulti" type="button" class="multi-toggle" aria-pressed="true">複数選択中</button>
+          <select id="d_shape" size="8" multiple></select>
+        </div>
+      </div>
+
+      <button id="btnAdd" class="primary big">＋ リストに追加</button>
+      <button id="btnReset" class="ghost small fullw">条件クリア</button>
+    </div>
+
+    <!-- BH材 手動モード -->
+    <div id="pane-bh" class="pane hidden">
+      <p class="hint">DBに無い断面（BH材＝ビルトアップH）を手動入力</p>
+      <div class="bh-grid">
+        <label>H <input id="bh_H" type="number" inputmode="decimal"></label>
+        <label>B <input id="bh_B" type="number" inputmode="decimal"></label>
+        <label>t_w <input id="bh_tw" type="number" inputmode="decimal" step="0.1"></label>
+        <label>t_f <input id="bh_tf" type="number" inputmode="decimal" step="0.1"></label>
+
+        <label>Material <select id="bh_material">
+          <option>SN400</option><option>SN490</option></select></label>
+        <label>Bolt <select id="bh_bolt">
+          <option>M16</option><option selected>M20</option><option>M22</option></select></label>
+        <label>Grade <select id="bh_grade">
+          <option selected>F10T</option><option>F8T</option></select></label>
+        <label>Family <select id="bh_family">
+          <option selected>BH</option><option>H</option><option>SH</option></select></label>
+
+        <div class="bh-sec">フランジ継手</div>
+        <label>n_fbolt <input id="bh_n_fbolt" type="number"></label>
+        <label>m_fbolt <input id="bh_m_fbolt" type="number"></label>
+        <label>g1 <input id="bh_g1" type="number"></label>
+        <label>g2 <input id="bh_g2" type="number"></label>
+        <label>t_fspl1 <input id="bh_t_fspl1" type="number"></label>
+        <label>w_fspl1 <input id="bh_w_fspl1" type="number"></label>
+        <label>t_fspl2 <input id="bh_t_fspl2" type="number"></label>
+        <label>w_fspl2 <input id="bh_w_fspl2" type="number"></label>
+        <label>l_fspl <input id="bh_l_fspl" type="number"></label>
+
+        <div class="bh-sec">ウェブ継手</div>
+        <label>n_wbolt <input id="bh_n_wbolt" type="number"></label>
+        <label>m_wbolt <input id="bh_m_wbolt" type="number"></label>
+        <label>p_wbolt (P1) <input id="bh_p_wbolt" type="number"></label>
+        <label>t_wspl <input id="bh_t_wspl" type="number"></label>
+        <label>w_wspl <input id="bh_w_wspl" type="number"></label>
+        <label>l_wspl <input id="bh_l_wspl" type="number"></label>
+
+        <label class="fullspan">備考 <input id="bh_remarks" type="text" placeholder="任意"></label>
+      </div>
+      <button id="btnAddBH" class="primary big">＋ BH材をリストに追加</button>
+    </div>
+  </aside>
+
+  <!-- ===== 中央: 選択リスト (操作 / 断面+参照条件 / 備考) ===== -->
+  <section class="col col-middle">
+    <div class="panel-head">
+      <h3>選択中のリスト <span class="prev-hint">詳細はプレビューを参照</span></h3>
+      <div class="panel-btns">
+        <button id="btnSortSize" class="small">▼ サイズ順</button>
+        <button id="btnClear" class="small" disabled>クリア</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="listTable" class="joint-list">
+        <thead>
+          <tr>
+            <th class="actcol">操作</th>
+            <th class="seccol">部材断面寸法（中央部材）<br><span class="sublbl">＋参照条件</span></th>
+            <th class="remcol">備考</th>
+          </tr>
+        </thead>
+        <tbody id="listBody">
+          <tr><td colspan="3" class="empty">左の「継手参照」または「BH材 手動」から追加してください。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== 右: CAD出力のみ ===== -->
+  <aside class="col col-right">
+    <div class="cad-out">
+      <div class="cad-out-head">⊞ CAD 一括出力</div>
+      <div class="cad-info">出力形式: <b>DXF</b>（データのみ）／レイヤ: TEXT・DEFPOINTS</div>
+      <input id="saveFolder" type="text" class="save-input" placeholder="保存先(任意・サーバ側パス)" style="display:none">
+      <button id="btnDownload" class="cad-out-btn" disabled>選択した <span id="outCount">0</span> 件を出力 ↗</button>
+      <button id="btnSave" class="ghost small fullw" disabled style="display:none">サーバへ保存</button>
+      <div id="msg" class="msg"></div>
+    </div>
+  </aside>
+
+</div>
+
+<!-- ===== 全幅: 詳細プレビュー (下部) ===== -->
+<section class="prev-section">
+  <div class="panel-head">
+    <h3>詳細プレビュー <span class="prev-hint">選択内容で自動更新／印刷時は白背景</span></h3>
+    <div class="panel-btns">
+      <button id="btnPreview" disabled>▶ 再描画</button>
+    </div>
+  </div>
+  <div class="prev-body">
+    <div id="prevEmpty" class="prev-empty">部材を追加するとここに自動でプレビューが出ます</div>
+    <div id="prevDoc" class="prev-doc hidden">
+      <div class="prev-doc-title">鉄骨大梁剛接合タイプ</div>
+      <table id="prevTable" class="prev-doc-table">
+        <thead>
+          <tr>
+            <th rowspan="2" class="sec-head">部材断面寸法<br>（中央部材）</th>
+            <th colspan="4">フランジ継手</th>
+            <th colspan="5">ウェブ継手</th>
+            <th rowspan="2">備&nbsp;&nbsp;考</th>
+          </tr>
+          <tr>
+            <th>H.T.BOLT</th><th>S PL-1</th><th>S PL-2</th><th>S PL-L</th>
+            <th>H.T.BOLT</th><th>N&nbsp;M</th><th>E1</th><th>P1</th><th>S PL-3</th>
+          </tr>
+        </thead>
+        <tbody id="prevTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 履歴モーダル ===== -->
+<div id="historyModal" class="hist-modal hidden">
+  <div class="hist-dialog">
+    <div class="hist-head">
+      <span class="hist-title">履歴</span>
+      <button id="histClose" class="x">✕</button>
+    </div>
+    <div class="hist-body">
+      <div class="hist-actions">
+        <button id="histSave" class="small">現在の選択を保存</button>
+        <button id="histClear" class="small ghost">全削除</button>
+      </div>
+      <div id="histList" class="hist-list">
+        <div class="hist-empty">履歴はありません</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 行編集モーダル（条件選択の変更）===== -->
+<div id="editModal" class="hist-modal hidden">
+  <div class="hist-dialog edit-dialog">
+    <div class="hist-head">
+      <span class="hist-title">行の編集（条件選択の変更）</span>
+      <button id="editClose" class="x">✕</button>
+    </div>
+    <div class="hist-body">
+      <div id="editSecLabel" class="edit-sec">—</div>
+      <div class="edit-field">
+        <label>条件選択（この断面が在る条件）</label>
+        <div id="editCondGroup" class="cond-list"></div>
+        <div class="edit-note">この断面が登録されている条件に変更できます。選ぶと継手諸元（ボルト・添板など）も自動で切り替わります。</div>
+      </div>
+      <div class="hist-actions edit-actions">
+        <button id="editCancel" class="small ghost">キャンセル</button>
+        <button id="editSave" class="small primary">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="joint_data.js"></script>
+<script src="app.js?v=stage3b"></script>
+</body>
+</html>
