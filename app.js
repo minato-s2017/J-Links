@@ -14,13 +14,29 @@ const HIST_KEY = "joint_list_history";
 const HIST_MAX = 20;
 // ビルド版数（ヘッダに表示）。EXE 再ビルドのたびに更新し、起動中のEXEが新旧どちらかを
 // 一目で判別できるようにする。旧版は「最終更新 X月Y日(=今日)」表示なので様式自体が異なる。
-const APP_BUILD = "2026-07-02s";
+const APP_BUILD = "2026-07-07s";
 // 材質グレード（データの SN400/SN490 を表示・マーク用に細分。6種を1列表示）
 const MATERIAL_GRADES = ["SS400", "SN400B", "SM490A", "SN490B"];
 const DEFAULT_MATERIAL = "SN400B";
 
+// ===== テーマ（ダーク/ライト）。<html data-theme> を切替え、localStorageに保存 =====
+const THEME_KEY = "joint_list_theme";
+function applyTheme(t) {
+  const mode = (t === "light") ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", mode);
+  const btn = $("btnTheme");
+  if (btn) btn.textContent = (mode === "light") ? "ライトモード" : "ダークモード";
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+  const next = (cur === "light") ? "dark" : "light";
+  try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+  applyTheme(next);
+}
+
 async function init() {
   $("dateSub").textContent = `版 ${APP_BUILD}`;
+  applyTheme(localStorage.getItem(THEME_KEY) || "dark");
   const sf = localStorage.getItem("saveFolder"); if (sf) $("saveFolder").value = sf;
   const pn = localStorage.getItem("projName"); if (pn) $("projName").value = pn;
   $("projName").addEventListener("change", e => localStorage.setItem("projName", e.target.value.trim()));
@@ -112,6 +128,17 @@ function bind() {
     refreshShapes();
   });
   $("btnAddBH").onclick = onAddBH;
+  // BH材 自動設計 / 検定 / 計算書
+  $("btnAutoBH").onclick = onAutoDesignBH;
+  $("btnCalcBH").onclick = onCalcBH;
+  $("bhCalcClose").onclick = closeBHCalc;
+  $("bhCalcCloseBtn").onclick = closeBHCalc;
+  $("bhCalcPdf").onclick = onBhCalcPrint;
+  $("bhCalcAdd").onclick = () => { onAddBH(); closeBHCalc(); };
+  $("bhCalcModal").addEventListener("click", (e) => {
+    if (e.target === $("bhCalcModal")) closeBHCalc();
+  });
+  $("btnBulkHead").onclick = toggleBulkHead;
   $("btnSortSize").onclick = () => { sortBySize(); renderList(); };
   $("btnClear").onclick = () => { selection = []; renderList(); };
   $("btnDownload").onclick = doDownload;
@@ -119,6 +146,8 @@ function bind() {
   $("btnPreview").onclick = doPreview;
   $("saveFolder").addEventListener("change", (e) =>
     localStorage.setItem("saveFolder", e.target.value.trim()));
+  // テーマ切替
+  $("btnTheme").onclick = toggleTheme;
   // 履歴
   $("btnHistory").onclick = openHistory;
   $("histClose").onclick = closeHistory;
@@ -132,6 +161,12 @@ function bind() {
   $("editCancel").onclick = closeEdit;
   $("editSave").onclick = saveEdit;
   $("editModal").addEventListener("click", (e) => { if (e.target === $("editModal")) closeEdit(); });
+  $("editHeadGroup").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-head]");
+    if (!b) return;
+    [...$("editHeadGroup").querySelectorAll("button")].forEach((x) => x.classList.remove("active"));
+    b.classList.add("active");
+  });
 }
 
 function setMode(mode) {
@@ -199,13 +234,14 @@ function onAddRef() {
   addRows(rowsToAdd);
 }
 
-async function onAddBH() {
+// BH材 入力フォーム → params（自動設計・検定・追加で共用）
+function bhFormParams() {
   const num = (id) => $(id).value.trim();
-  const params = {
+  return {
     H: num("bh_H"), B: num("bh_B"), tw: num("bh_tw"), tf: num("bh_tf"),
     material: $("bh_material").value, bolt_size: $("bh_bolt").value,
     grade: $("bh_grade").value, family: $("bh_family").value,
-    type: "beam",
+    type: "beam", galv: $("bh_galv").checked,
     n_fbolt: num("bh_n_fbolt"), m_fbolt: num("bh_m_fbolt"),
     g1_fbolt_mm: num("bh_g1"), g2_fbolt_mm: num("bh_g2"),
     t_fspl1_mm: num("bh_t_fspl1"), w_fspl1_mm: num("bh_w_fspl1"),
@@ -216,12 +252,89 @@ async function onAddBH() {
     t_wspl_mm: num("bh_t_wspl"), w_wspl_mm: num("bh_w_wspl"), l_wspl_mm: num("bh_l_wspl"),
     remarks: num("bh_remarks"),
   };
+}
+
+async function onAddBH() {
+  const params = bhFormParams();
   if (!params.H || !params.B) { setMsg("少なくとも H と B を入力してください", true); return; }
   try {
     const row = JointData.buildRowFromParams(params, -Date.now());
     if (row) { addRows([row]); setMsg("BH材を追加しました"); }
     else setMsg("BH材追加失敗", true);
   } catch (e) { setMsg("BH材追加失敗: " + e, true); }
+}
+
+// 設計結果 params をフォームへ反映（自動設計・再検定後の充填）
+function fillBHForm(p) {
+  const set = (id, v) => { if (v != null) $(id).value = v; };
+  set("bh_n_fbolt", p.n_fbolt); set("bh_m_fbolt", p.m_fbolt);
+  set("bh_t_fspl1", p.t_fspl1_mm); set("bh_w_fspl1", p.w_fspl1_mm);
+  set("bh_t_fspl2", p.t_fspl2_mm); set("bh_w_fspl2", p.w_fspl2_mm);
+  set("bh_l_fspl", p.l_fspl_mm);
+  set("bh_n_wbolt", p.n_wbolt); set("bh_m_wbolt", p.m_wbolt); set("bh_p_wbolt", p.p_wbolt_mm);
+  set("bh_t_wspl", p.t_wspl_mm); set("bh_w_wspl", p.w_wspl_mm); set("bh_l_wspl", p.l_wspl_mm);
+}
+
+let _bhCalcParams = null;
+
+// 自動設計（断面 → 継手諸元） SCSS §2.4：許容応力度設計＋α確認
+function onAutoDesignBH() {
+  const params = bhFormParams();
+  if (!params.H || !params.B || !params.tw || !params.tf) {
+    setMsg("自動設計には H・B・t_w・t_f が必要です", true); return;
+  }
+  try {
+    const data = BHDesign.run(params, true);
+    fillBHForm(data.params);
+    openBHCalc(data);
+    const s = data.summary;
+    setMsg(`自動設計: αj=${s.alpha_j} (≥${s.alpha_req}) ${s.ok ? "OK" : "NG"}`, !s.ok);
+  } catch (e) { setMsg("自動設計失敗: " + e, true); }
+}
+
+// フォームの継手諸元で再検定（手動上書き後の確認）
+function onCalcBH() {
+  const params = bhFormParams();
+  if (!params.H || !params.B) { setMsg("H・B を入力してください", true); return; }
+  try {
+    const data = BHDesign.run(params, false);
+    fillBHForm(data.params);
+    openBHCalc(data);
+    setMsg("再検定しました");
+  } catch (e) { setMsg("検定失敗: " + e, true); }
+}
+
+function openBHCalc(data) {
+  _bhCalcParams = bhFormParams();
+  const s = data.summary || {};
+  $("bhCalcSummary").innerHTML =
+    `総合 <span class="${s.ok ? "ok" : "ng"}">${s.ok ? "OK" : "NG"}</span>　`
+    + `αj=${s.alpha_j} (≥${s.alpha_req})　Mj=${s.Mj}kNm　Qj=${s.Qj}kN　Lq=${s.Lq}m`;
+  $("bhCalcBody").innerHTML = data.calc_html || "";
+  $("bhCalcModal").classList.remove("hidden");
+}
+
+function closeBHCalc() { $("bhCalcModal").classList.add("hidden"); }
+
+// 計算書をブラウザ印刷（→ PDFで保存）。静的版はバックエンド無しのため印刷方式。
+function onBhCalcPrint() {
+  const body = $("bhCalcBody").innerHTML;
+  if (!body) { setMsg("先に自動設計または再検定を実行してください", true); return; }
+  const esc = (s) => s.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
+  const summary = ($("bhCalcSummary").textContent || "").trim();
+  const w = window.open("", "_blank", "width=920,height=760");
+  if (!w) { setMsg("ポップアップがブロックされました。印刷を許可してください", true); return; }
+  w.document.write(
+    '<!doctype html><html lang="ja"><head><meta charset="utf-8">'
+    + "<title>BH継手計算書</title><style>"
+    + "body{font-family:sans-serif;margin:18px;color:#111;background:#fff}"
+    + ".psum{font-size:13px;margin:0 0 12px;padding:7px 11px;border:1px solid #ccd;border-radius:5px}"
+    + BHDesign.CALC_CSS + "</style></head><body>"
+    + '<div class="psum">' + esc(summary) + "</div>"
+    + body + "</body></html>");
+  w.document.close();
+  w.focus();
+  setTimeout(() => { try { w.print(); } catch (e) { /* noop */ } }, 300);
 }
 
 // ===== selection =====
@@ -232,8 +345,8 @@ function findByUid(uid) { return selection.findIndex((r) => r._uid === uid); }
 
 function addRows(rows) {
   rows.forEach((r) => {
-    // 同一断面の二重追加は防ぐ
-    const dup = selection.some((s) => s.id === r.id);
+    // 同一断面＋同一材質の二重追加のみ防ぐ（材質が違えば同じ断面でも追加できる）
+    const dup = selection.some((s) => s.id === r.id && s.material === r.material);
     if (!dup) {
       const row = { ...r };
       row._uid = nextUid();
@@ -352,7 +465,8 @@ function refBadgesHtml(r) {
   if (r.material)  parts.push(`<span class="badge b-mat">${esc(r.material)}</span>`);
   if (r.grade)     parts.push(`<span class="badge b-grade">${esc(r.grade)}</span>`);
   if (r.bolt_size) parts.push(`<span class="badge b-bolt">${esc(r.bolt_size)}</span>`);
-  if (r.family && r.family !== "H" && r.family !== "SH") parts.push(`<span class="badge b-fam">${esc(r.family)}</span>`);
+  // データ実体の family（SH/BH）はバッジで明示（H統合表示でも元がSHと分かるように）
+  if (r.family && String(r.family).toUpperCase() !== "H") parts.push(`<span class="badge b-fam">${esc(r.family)}</span>`);
   return parts.length ? `<div class="ref-badges">${parts.join("")}</div>` : "";
 }
 
@@ -392,6 +506,7 @@ function renderList() {
   $("btnSave").disabled = n === 0;
   $("btnPreview").disabled = n === 0;
   $("btnClear").disabled = n === 0;
+  updateBulkHeadBtn();
   if (n === 0) {
     $("prevDoc").classList.add("hidden");
     $("prevEmpty").style.display = "block";
@@ -416,7 +531,24 @@ function openEdit(uid) {
   if (i < 0) return;
   _editUid = uid;
   const r = selection[i];
+  const fam = String(r.family || "").toUpperCase();
+  const isBH = fam === "BH";
+  const canSH = fam === "SH";                 // 頭マークを SH にできるのは JSON実体が SH の断面のみ
+  const head = String(r.head || (isBH ? "BH" : "H")).toUpperCase();
   $("editSecLabel").textContent = r.section || r.shape || "";
+  // 頭マーク切替UIは SH実体のときだけ表示。H（圧延H）/ BH は固定なので理由を注記する
+  $("editHeadGroup").classList.toggle("hidden", !canSH);
+  const fixed = $("editHeadFixed");
+  if (canSH) {
+    fixed.classList.add("hidden");
+  } else {
+    fixed.classList.remove("hidden");
+    fixed.textContent = isBH
+      ? "この断面は BH材（DB外）のため、頭マークは「BH」固定です。"
+      : "この断面は JSON実体が H（圧延H）のため、頭マークは「H」固定です（SH表示にはできません）。";
+  }
+  [...$("editHeadGroup").querySelectorAll("button")].forEach((b) =>
+    b.classList.toggle("active", b.dataset.head === head));
   loadEditConditions(r);
   $("editModal").classList.remove("hidden");
 }
@@ -469,7 +601,7 @@ function closeEdit() { $("editModal").classList.add("hidden"); _editUid = null; 
 function saveEdit() {
   const i = findByUid(_editUid);
   if (i < 0) { closeEdit(); return; }
-  const r = selection[i];
+  let r = selection[i];
   const sel = _editConds.find((c) => c.key === _editSelKey);
   const curKey = condKey(r.grade, r.material, r.bolt_size);
   if (sel && sel.key !== curKey) {
@@ -479,10 +611,43 @@ function saveEdit() {
     const nr = nrows.find((x) => x.shape === r.shape);
     if (!nr) { setMsg("この断面はこの条件には存在しません", true); return; }
     selection[i] = { ...nr, _uid: r._uid, remarks: r.remarks };   // 継手値ごと差し替え・_uid/備考は保持
+    r = selection[i];
+  }
+  // 頭マーク（SH実体のみ）
+  if (String(r.family || "").toUpperCase() === "SH") {
+    const act = $("editHeadGroup").querySelector("button.active");
+    const head = act ? act.dataset.head : "H";
+    r.head = head;
+    r.section = head + "-" + (r.shape || "");   // 頭マーク + "-" + 断面寸法（CADにもこのheadが渡る）
   }
   renderList();
   closeEdit();
   setMsg("行を更新しました");
+}
+
+// ===== 頭マーク H/SH の一括切替（BH材は対象外） =====
+// 頭マークを H/SH 切替できるのは JSON実体が SH の断面のみ（H＝圧延H・BH は固定）
+function eligibleHeadRows() {
+  return selection.filter((r) => String(r.family || "").toUpperCase() === "SH");
+}
+function toggleBulkHead() {
+  const elig = eligibleHeadRows();
+  if (!elig.length) { setMsg("H/SH 切替の対象がありません（BH材のみ）", true); return; }
+  // 全行がSH表示なら H に、そうでなければ SH に揃える
+  const allSH = elig.every((r) => String(r.head || "H").toUpperCase() === "SH");
+  const target = allSH ? "H" : "SH";
+  elig.forEach((r) => { r.head = target; r.section = target + "-" + (r.shape || ""); });
+  renderList();
+  setMsg(`頭マークを全 ${elig.length} 件 ${target} 表示にしました`);
+}
+// ボタンの活性/表示文字を現状に合わせて更新（renderList から呼ぶ）
+function updateBulkHeadBtn() {
+  const btn = $("btnBulkHead");
+  if (!btn) return;
+  const elig = eligibleHeadRows();
+  btn.disabled = elig.length === 0;
+  const allSH = elig.length > 0 && elig.every((r) => String(r.head || "H").toUpperCase() === "SH");
+  btn.textContent = allSH ? "全てHに" : "全てSHに";
 }
 
 // ===== プレビュー =====

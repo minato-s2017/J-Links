@@ -4,18 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>鉄骨剛接合リスト</title>
+<title>Joint-Links</title>
 <link rel="icon" href="icon/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="icon/favicon-32.png">
 <link rel="apple-touch-icon" href="icon/apple-touch-icon.png">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=col2">
+<script>try{if(localStorage.getItem('joint_list_theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>
 </head>
 <body>
 <!-- ===== パスワード（暗号データ復号）ゲート ===== -->
 <div id="authOverlay" class="auth-overlay">
   <form id="authForm" class="auth-box" autocomplete="off">
     <img class="auth-icon" src="icon/appmark-256.png" alt="Joint-Links">
-    <h2>鉄骨剛接合リスト</h2>
+    <h2>Joint-Links</h2>
     <p class="auth-msg">パスワードを入力してください</p>
     <input id="authPass" type="password" class="auth-input" placeholder="パスワード" autocomplete="off">
     <label class="auth-remember"><input id="authRemember" type="checkbox" checked> この端末で次回から省略</label>
@@ -28,11 +29,12 @@
   <div class="topbar-title">
     <img class="title-icon" src="icon/appmark-256.png" alt="Joint-Links ロゴ">
     <div>
-      <h1>鉄骨剛接合リスト</h1>
+      <h1>Joint-Links</h1>
       <div class="proj-sub">プロジェクト: <input id="projName" placeholder="(任意)"> ・ <span id="dateSub">最終更新 …</span></div>
     </div>
   </div>
   <div class="topbar-stats">
+    <button id="btnTheme" class="history-btn" title="ダークモード / ライトモード 切替">ダークモード</button>
     <button id="btnHistory" class="history-btn" title="過去の選択を呼び出す">履歴</button>
     <button id="btnLock" class="history-btn" title="この端末の記憶を消してロック">🔒</button>
     <span id="selCount" class="cnt">選択 0 件</span>
@@ -121,6 +123,13 @@
         <label>Family <select id="bh_family">
           <option selected>BH</option><option>H</option><option>SH</option></select></label>
 
+        <label class="fullspan bh-galv"><input type="checkbox" id="bh_galv"> メッキ（摩擦面 μ=0.4／無印は 0.45）</label>
+        <div class="fullspan bh-auto">
+          <button id="btnAutoBH" type="button" class="primary">🔧 自動設計（断面→継手諸元）</button>
+          <button id="btnCalcBH" type="button" class="ghost small">📄 計算書 / 再検定</button>
+        </div>
+        <div class="fullspan bh-hint2">SCSS §2.4 準拠（許容応力度設計＋第1種保有耐力接合 α確認）。自動設計の値は下で手動上書き可。</div>
+
         <div class="bh-sec">フランジ継手</div>
         <label>n_fbolt <input id="bh_n_fbolt" type="number"></label>
         <label>m_fbolt <input id="bh_m_fbolt" type="number"></label>
@@ -151,6 +160,7 @@
     <div class="panel-head">
       <h3>選択中のリスト <span class="prev-hint">詳細はプレビューを参照</span></h3>
       <div class="panel-btns">
+        <button id="btnBulkHead" class="small bulk-head" title="リスト全体の頭マークを H ⇄ SH で一括切替（BH材は対象外）" disabled>全てSHに</button>
         <button id="btnSortSize" class="small">▼ サイズ順</button>
         <button id="btnClear" class="small" disabled>クリア</button>
       </div>
@@ -249,6 +259,17 @@
         <div id="editCondGroup" class="cond-list"></div>
         <div class="edit-note">この断面が登録されている条件に変更できます。選ぶと継手諸元（ボルト・添板など）も自動で切り替わります。</div>
       </div>
+
+      <div class="edit-field">
+        <label>頭マーク（表示）</label>
+        <div id="editHeadGroup" class="pill-group">
+          <button type="button" data-head="H">H</button>
+          <button type="button" data-head="SH">SH</button>
+        </div>
+        <div id="editHeadFixed" class="edit-note hidden"></div>
+        <div class="edit-note">頭マークを「SH」表示にできるのは、JSON実体が SH の断面のみです（H・BH は固定）。SH 断面も既定は「H」に統合表示します。</div>
+      </div>
+
       <div class="hist-actions edit-actions">
         <button id="editCancel" class="small ghost">キャンセル</button>
         <button id="editSave" class="small primary">保存</button>
@@ -257,7 +278,27 @@
   </div>
 </div>
 
-<script src="joint_data.js"></script>
-<script src="app.js?v=stage3b"></script>
+<!-- ===== BH継手 計算書（検定表）モーダル ===== -->
+<div id="bhCalcModal" class="hist-modal hidden">
+  <div class="hist-dialog bhcalc-dialog">
+    <div class="hist-head">
+      <span class="hist-title">BH継手 計算書（検定表）</span>
+      <button id="bhCalcClose" class="x">✕</button>
+    </div>
+    <div class="hist-body">
+      <div id="bhCalcSummary" class="bhcalc-summary"></div>
+      <div id="bhCalcBody" class="bhcalc-scroll"></div>
+      <div class="hist-actions">
+        <button id="bhCalcPdf" class="small">📄 計算書を印刷 / PDF保存</button>
+        <button id="bhCalcAdd" class="small primary">＋ この内容でリストに追加</button>
+        <button id="bhCalcCloseBtn" class="small ghost">閉じる</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="joint_data.js?v=col2"></script>
+<script src="bh_design.js?v=bh1"></script>
+<script src="app.js?v=bh1"></script>
 </body>
 </html>

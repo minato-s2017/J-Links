@@ -96,11 +96,20 @@ const JointData = (() => {
     return (n === 1) ? ("PL-" + core) : `${Math.trunc(n)}PL-${core}`;
   }
 
+  // ---- 断面の「頭マーク」(section列の接頭辞) 既定値。BH(手動ビルトアップH)→'BH' / それ以外→'H' ----
+  // ※ JSON実体が SH の断面でも既定は 'H' に統合表示（data.py head_for と同仕様）。
+  function head_for(family) {
+    return String(family).toUpperCase() === "BH" ? "BH" : "H";
+  }
+
   // ---- 1レコード → 「鉄骨剛接合リスト」1行ぶんの表示データ ----
   // material_override: 画面で選んだグレード(SS400/SN400B/…)。指定時は表示・マークへ反映。
-  function to_list_row(rec, material_override = null) {
+  // head_override: 頭マーク('H'/'SH'/'BH')を明示指定。未指定なら family から既定値(head_for)。
+  function to_list_row(rec, material_override = null, head_override = null) {
     const bolt = (rec.bolt_size != null) ? rec.bolt_size : "";
     const material = material_override || ((rec.material != null) ? rec.material : "");
+    const family = (rec.family != null) ? rec.family : "";
+    const head = head_override || head_for(family);
     const n_fb = _intnum(rec.n_fbolt);
     const m_fb = _intnum(rec.m_fbolt);
     const m_wb = _intnum(rec.m_wbolt);
@@ -114,12 +123,13 @@ const JointData = (() => {
       type: (rec.type != null) ? rec.type : "",   // beam/column（条件バッジ・条件変更用）
       material: material,
       bolt_size: bolt,
-      family: (rec.family != null) ? rec.family : "",
+      family: family,                          // データ実体 H / SH / BH（保持）
+      head: head,                              // 表示用 頭マーク H / SH / BH
       shape: (rec.shape != null) ? rec.shape : "",
       // --- 表示列 ---
       mark: mark_type(material),               // square/circle/diamond/none
       mark_letter: mark_letter(material),       // 'A' / 'B'
-      section: "H-" + String((rec.shape != null) ? rec.shape : ""),
+      section: head + "-" + String((rec.shape != null) ? rec.shape : ""),
       // フランジ継手
       f_bolt: _bolt_text(n_fb * m_fb, bolt),
       spl1: _plate_text(rec.t_fspl1_mm, rec.w_fspl1_mm, null, 1),
@@ -254,8 +264,9 @@ const JointData = (() => {
         const groups = block[grade] || [];
         for (const g of groups) {
           const cs = g.common_settings || {};
-          // EXE(web)版に合わせ 梁(beams) のみ＝1776件。柱(columns)も一覧に出すなら ...(g.columns||[]) を追加。
-          const members = [...(g.beams || [])];
+          // メンバーは "beams"(梁) または "columns"(柱) に格納される。
+          // 旧実装は "beams" のみ読んでいたため type=column が常に0件だった（EXE版 data.py と同修正）。
+          const members = [...(g.beams || []), ...(g.columns || [])];
           for (const b of members) {
             const rec = Object.assign({}, b);
             rec.id = rid;

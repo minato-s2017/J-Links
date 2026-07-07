@@ -3,6 +3,7 @@ data/SCSS_F8T.F10T.json
 
 # ローカル作業用
 *.bak
+.pdf/
 
 # アイコン作業用ソース・マスター（配布不要・ローカル保持のみ）
 icon/*.webp
