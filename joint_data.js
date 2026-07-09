@@ -141,9 +141,10 @@ const JointData = (() => {
       M: String(m_wb),
       E1: compute_e1(rec),
       P1: String(p1),
-      // SPL-3: せい寸法は w_wspl_mm が無い個体で w_wspl1_mm にフォールバック
-      spl3: _plate_text(rec.t_wspl_mm, rec.l_wspl_mm,
-                        (rec.w_wspl_mm || rec.w_wspl1_mm), 2),
+      // SPL-3: "2PL-{t}x{w_wspl}x{l_wspl}"（例 t=9, w_wspl=260, l_wspl=170 → 2PL-9x260x170）。
+      // w_wspl_mm が無い個体は w_wspl1_mm にフォールバック。以前は l_wspl と w_wspl が逆だったのを修正。
+      spl3: _plate_text(rec.t_wspl_mm, (rec.w_wspl_mm || rec.w_wspl1_mm),
+                        rec.l_wspl_mm, 2),
     };
   }
 
