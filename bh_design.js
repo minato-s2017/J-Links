@@ -335,7 +335,7 @@ const BHDesign = (() => {
         `${d.nf}×${d.mf} 本／添板 外PL-${Math.trunc(fo.t)}×${Math.trunc(fo.b)}, `
         + `内2PL-${Math.trunc(fi.t)}×${Math.trunc(fi.b)}, L=${Math.trunc(fo.L)}`],
       ["ウェブ継手",
-        `${d.nw}×${d.mw} 本／添板 2PL-${Math.trunc(w.t)}×${Math.trunc(w.L)}×${Math.trunc(w.b)}, `
+        `${d.nw}×${d.mw} 本／添板 2PL-${Math.trunc(w.t)}×${Math.trunc(w.b)}×${Math.trunc(w.L)}, `
         + `P1=${rnd(d.P1)}`],
     ];
     const allow = [
