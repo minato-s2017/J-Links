@@ -8,14 +8,14 @@
 <link rel="icon" href="icon/favicon.ico?v=lynx3" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="icon/favicon-32.png?v=lynx3">
 <link rel="apple-touch-icon" href="icon/apple-touch-icon.png?v=lynx3">
-<link rel="stylesheet" href="style.css?v=col2">
+<link rel="stylesheet" href="style.css?v=shape2">
 <script>try{if(localStorage.getItem('joint_list_theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>
 </head>
 <body>
 <!-- ===== パスワード（暗号データ復号）ゲート ===== -->
 <div id="authOverlay" class="auth-overlay">
   <form id="authForm" class="auth-box" autocomplete="off">
-    <img class="auth-icon" src="icon/appmark-256.png?v=lynx3" alt="Joint-Links">
+    <img class="auth-icon" src="icon/joint-links_lock2.webp?v=lock2" alt="Joint-Links">
     <h2>Joint-Links</h2>
     <p class="auth-msg">パスワードを入力してください</p>
     <input id="authPass" type="password" class="auth-input" placeholder="パスワード" autocomplete="off">
@@ -79,6 +79,16 @@
       <input type="hidden" id="d_type" value="beam">
       <input type="hidden" id="d_material" value="SN400B">
       <input type="hidden" id="d_bolt" value="M20">
+
+      <!-- 追加shape: H / B を 100刻みでトグル選択（例: 300 → 302,390… 百の位=3 を全て抽出）。複数選択可。 -->
+      <div class="frow shape-hb-row">
+        <label>H 選択<br><small class="hb-note">100刻み</small></label>
+        <div class="pill-group pill-hb pill-h" id="d_h_pills"></div>
+      </div>
+      <div class="frow shape-hb-row">
+        <label>B 選択<br><small class="hb-note">100刻み</small></label>
+        <div class="pill-group pill-hb pill-b" id="d_b_pills"></div>
+      </div>
 
       <div class="frow">
         <label>検索: Shape</label>
@@ -297,8 +307,8 @@
   </div>
 </div>
 
-<script src="joint_data.js?v=col3"></script>
+<script src="joint_data.js?v=shape1"></script>
 <script src="bh_design.js?v=bh2"></script>
-<script src="app.js?v=bh1"></script>
+<script src="app.js?v=shape1"></script>
 </body>
 </html>

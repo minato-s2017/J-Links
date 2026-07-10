@@ -13,19 +13,22 @@ body{background:var(--bg); color:var(--text);
   -webkit-text-size-adjust:100%; min-height:100vh;}
 
 /* ===== パスワードゲート（暗号データ復号）===== */
+/* ロック画面はロゴ画像(joint-links_lock.webp)の黒背景に合わせ、常に黒基調で表示（テーマ非依存）。
+   カードの枠・影を消して画像の黒背景と地続きにし、画像が“切り抜き矩形”に見えないようにする。 */
 .auth-overlay{position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center;
-  background:var(--bg); padding:20px;}
-.auth-box{width:340px; max-width:92vw; background:var(--panel); border:1px solid var(--line);
-  border-radius:12px; padding:26px 24px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.5); color:var(--text);}
-.auth-icon{display:block; height:92px; width:auto; margin:0 auto 14px;
-  filter:drop-shadow(0 4px 14px rgba(0,0,0,.55));}
-.auth-box h2{font-size:17px; margin:0 0 4px; font-weight:600;}
-.auth-msg{font-size:13px; color:var(--muted); margin:0 0 16px;}
-.auth-input{width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line);
+  background:#030307; padding:20px; overflow:auto;}   /* 画像の背景色(lock2 実測 ≈#020206)に合わせ地続きに */
+.auth-box{width:min(480px,94vw); background:transparent; border:none;
+  border-radius:0; padding:18px 20px; text-align:center; box-shadow:none; color:#e6edf3;}
+/* 画像は全体をそのまま表示（切り抜かない）。lock2はロゴが枠一杯(余白 上5/下5/左2/右4%)で縁がほぼ黒のため
+   フェードmaskは不要（掛けるとロゴが欠ける）。背景色を画像背景に合わせ“切り抜き矩形”を溶かす。見切れない範囲で拡大。 */
+.auth-icon{display:block; width:100%; height:auto; margin:0 auto 20px; filter:none;}
+.auth-box h2{font-size:19px; margin:0 0 4px; font-weight:600; color:#e6edf3;}
+.auth-msg{font-size:13px; color:#9aa4b2; margin:0 0 16px;}
+.auth-input{width:100%; background:#0d1117; color:#e6edf3; border:1px solid #2a3340;
   border-radius:6px; padding:11px 12px; font-size:15px; margin-bottom:10px;}
 .auth-input:focus{outline:1px solid var(--accent2); border-color:var(--accent2);}
 .auth-remember{display:flex; align-items:center; gap:7px; justify-content:center; font-size:12px;
-  color:var(--muted); margin-bottom:14px;}
+  color:#9aa4b2; margin-bottom:14px;}
 .auth-btn{width:100%; background:var(--accent2); color:#04122b; border:none; border-radius:6px;
   padding:11px; font-size:15px; font-weight:600; cursor:pointer;}
 .auth-btn:hover{filter:brightness(1.08);}
@@ -134,6 +137,15 @@ button.accent{background:var(--accent); color:#1a1200; border-color:var(--accent
 .pill-group.pill-red    button.active{background:rgba(220, 38, 38,.22); border-color:rgba(220, 38, 38,.75); color:var(--text); font-weight:600;}
 .pill-group.pill-green  button.active{background:rgba( 22,163, 74,.24); border-color:rgba( 22,163, 74,.75); color:var(--text); font-weight:600;}
 .pill-group.pill-yellow button.active{background:rgba(234,179,  8,.26); border-color:rgba(234,179,  8,.80); color:var(--text); font-weight:600;}
+
+/* ===== 追加shape: H / B 100刻みトグル（例: 300 → 300〜399 を抽出。複数選択可） ===== */
+.shape-hb-row .hb-note{color:var(--accent2); font-weight:600;}
+.pill-hb{max-height:104px; overflow:auto;}
+.pill-hb button{min-width:52px; text-align:center;}
+/* 選択中は他フィルタと同じ“クリアカラー”(淡い透過塗り＋色枠・文字は通常色)。H=シアン / B=バイオレット */
+.pill-group.pill-h button.active{background:rgba( 34,211,238,.20); border-color:rgba( 34,211,238,.72); color:var(--text); font-weight:600;}
+.pill-group.pill-b button.active{background:rgba(168, 85,247,.24); border-color:rgba(168, 85,247,.78); color:var(--text); font-weight:600;}
+.hb-empty{color:var(--muted); font-size:12px; padding:4px 2px;}
 
 /* ===== BH材フォーム ===== */
 .bh-grid{display:grid; grid-template-columns:1fr 1fr; gap:6px 10px; margin-bottom:6px}

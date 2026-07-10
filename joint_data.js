@@ -150,7 +150,8 @@ const JointData = (() => {
 
   // ---- 検索（完全一致＋shape部分一致＋寸法の前方一致）----
   function search(records, kw = {}) {
-    const { grade, type: mtype, material, bolt, shape, family, h, b, tw, tf } = kw;
+    const { grade, type: mtype, material, bolt, shape, family, h, b, tw, tf,
+            hBuckets, bBuckets } = kw;
     let out = records;
     if (grade)  out = out.filter((r) => r.grade === grade);
     if (mtype)  out = out.filter((r) => r.type === mtype);
@@ -178,7 +179,37 @@ const JointData = (() => {
         return true;
       });
     }
+    // 100刻みトグル（H/B の「百の位」帯で絞る。例: 300 → 300〜399 を全て）。複数選択は OR。
+    const hb = Array.isArray(hBuckets) ? hBuckets.map(Number).filter((n) => !Number.isNaN(n)) : [];
+    const bb = Array.isArray(bBuckets) ? bBuckets.map(Number).filter((n) => !Number.isNaN(n)) : [];
+    if (hb.length || bb.length) {
+      const band = (v) => { const n = parseFloat(v); return Number.isNaN(n) ? null : Math.floor(n / 100) * 100; };
+      out = out.filter((r) => {
+        const toks = String(r.shape || "").split("x");
+        if (hb.length) { const H = band(toks[0]); if (H === null || !hb.includes(H)) return false; }
+        if (bb.length) { const B = band(toks[1]); if (B === null || !bb.includes(B)) return false; }
+        return true;
+      });
+    }
     return out;
+  }
+
+  // ---- H/B の「百の位」バケット候補（100刻みトグル用）----
+  // 寸法テキスト(h/b/tw/tf)やバケット選択は無視し、種別/鋼種/等級/ボルトの母集合から算出。
+  function hundreds(records, filters = {}) {
+    const base = search(records, {
+      grade: filters.grade, type: filters.type, material: filters.material,
+      bolt: filters.bolt, family: filters.family, shape: filters.shape,
+    });
+    const hs = new Set(), bs = new Set();
+    for (const r of base) {
+      const toks = String(r.shape || "").split("x");
+      const H = parseFloat(toks[0]), B = parseFloat(toks[1]);
+      if (!Number.isNaN(H)) hs.add(Math.floor(H / 100) * 100);
+      if (!Number.isNaN(B)) bs.add(Math.floor(B / 100) * 100);
+    }
+    const asc = (x, y) => x - y;
+    return { h: [...hs].sort(asc), b: [...bs].sort(asc) };
   }
 
   // ---- 断面のサイズ順ソート用キー比較（HxBxt_wxt_f を数値比較）----
@@ -323,6 +354,8 @@ const JointData = (() => {
     loadEncrypted,
     // GET /api/facets
     facets: () => facets(RECORDS),
+    // H/B の 100刻みバケット候補 {h:[...], b:[...]}（現在の種別/鋼種/等級/ボルト条件で算出）
+    hundreds: (filters) => hundreds(RECORDS, filters || {}),
     // GET /api/shapes  → {count, rows}（断面ごと重複なし・サイズ順）
     shapeRows: (filters) => {
       const rows = shape_rows(RECORDS, filters || {});

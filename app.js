@@ -2,6 +2,8 @@
 
 let selection = [];          // 選択中(リストに追加された)行
 let dialogRows = [];         // 継手参照で現在ロード中の断面候補
+let hBuckets = [];           // 追加shape: 選択中の H 100刻みバケット（複数可）
+let bBuckets = [];           // 追加shape: 選択中の B 100刻みバケット（複数可）
 let multiMode = true;        // デフォルト ON
 const currentFmt = "dxf";    // 出力は DXF のみ
 let materials = [];          // facets material
@@ -14,7 +16,7 @@ const HIST_KEY = "joint_list_history";
 const HIST_MAX = 20;
 // ビルド版数（ヘッダに表示）。EXE 再ビルドのたびに更新し、起動中のEXEが新旧どちらかを
 // 一目で判別できるようにする。旧版は「最終更新 X月Y日(=今日)」表示なので様式自体が異なる。
-const APP_BUILD = "2026-07-07s";
+const APP_BUILD = "2026-07-10s";
 // 材質グレード（データの SN400/SN490 を表示・マーク用に細分。6種を1列表示）
 const MATERIAL_GRADES = ["SS400", "SN400B", "SM490A", "SN490B"];
 const DEFAULT_MATERIAL = "SN400B";
@@ -60,6 +62,7 @@ async function init() {
   applyMultiUI(true);   // デフォルトで複数選択ON
   bind();
   renderList();
+  buildShapeToggles();  // H/B 100刻みトグルを生成
   refreshShapes();
 }
 
@@ -92,6 +95,7 @@ function buildPills(containerId, hiddenId, values, current) {
       [...c.querySelectorAll("button")].forEach((x) => x.classList.remove("active"));
       b.classList.add("active");
       $(hiddenId).value = v;
+      buildShapeToggles();   // 条件変更で H/B バケット候補を再構築（選択は可能な限り保持）
       refreshShapes();
     };
     c.appendChild(b);
@@ -125,6 +129,8 @@ function bind() {
     const parts = v.split("x").map((s) => s.trim());
     $("d_h").value = parts[0] || ""; $("d_b").value = parts[1] || "";
     $("d_tw").value = parts[2] || ""; $("d_tf").value = parts[3] || "";
+    hBuckets.length = 0; bBuckets.length = 0;   // 全文検索時は H/B トグル選択を解除
+    buildShapeToggles();
     refreshShapes();
   });
   $("btnAddBH").onclick = onAddBH;
@@ -200,6 +206,8 @@ function resetFilters() {
   buildPills("d_material_pills", "d_material", materials, DEFAULT_MATERIAL);
   ["d_h", "d_b", "d_tw", "d_tf"].forEach((id) => ($(id).value = ""));
   $("searchBox").value = "";
+  hBuckets.length = 0; bBuckets.length = 0;   // H/B トグル選択も解除
+  buildShapeToggles();
   refreshShapes();
   setMsg("条件をリセットしました");
 }
@@ -212,6 +220,7 @@ async function refreshShapes() {
       // family は意図的に送らない(H/SH統合扱い)
       h: $("d_h").value.trim(), b: $("d_b").value.trim(),
       tw: $("d_tw").value.trim(), tf: $("d_tf").value.trim(),
+      hBuckets, bBuckets,   // H/B 100刻みトグルの選択（複数可）
     });
     dialogRows = data.rows || [];
     $("d_shape").innerHTML = dialogRows
@@ -222,6 +231,44 @@ async function refreshShapes() {
     $("d_count").textContent = "該当: 取得失敗";
     setMsg("断面取得失敗: " + e, true);
   }
+}
+
+// ===== 追加shape: H / B の 100刻みトグル =====
+// 現在の 種別/鋼種/等級/ボルト 条件で存在する H・B の「百の位」帯を列挙してトグル生成。
+function buildShapeToggles() {
+  let av = { h: [], b: [] };
+  try {
+    av = JointData.hundreds({
+      grade: $("d_grade").value, type: $("d_type").value,
+      material: $("d_material").value, bolt: $("d_bolt").value,
+    });
+  } catch (e) { /* データ未ロード時などは空 */ }
+  renderBucketPills("d_h_pills", av.h, hBuckets);
+  renderBucketPills("d_b_pills", av.b, bBuckets);
+}
+
+// 候補 avail をトグルボタン化。選択状態は stateArr(配列)に保持（複数選択・OR）。
+function renderBucketPills(containerId, avail, stateArr) {
+  const c = $(containerId);
+  if (!c) return;
+  // 候補から消えたバケットは選択解除（条件変更で存在しなくなった場合）
+  for (let i = stateArr.length - 1; i >= 0; i--) {
+    if (!avail.includes(stateArr[i])) stateArr.splice(i, 1);
+  }
+  c.innerHTML = "";
+  if (!avail.length) { c.innerHTML = `<span class="hb-empty">該当なし</span>`; return; }
+  avail.forEach((v) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = v; b.dataset.value = v;
+    if (stateArr.includes(v)) b.classList.add("active");
+    b.onclick = () => {
+      const idx = stateArr.indexOf(v);
+      if (idx >= 0) { stateArr.splice(idx, 1); b.classList.remove("active"); }
+      else { stateArr.push(v); b.classList.add("active"); }
+      refreshShapes();
+    };
+    c.appendChild(b);
+  });
 }
 
 // （所在検索機能は廃止。条件変更は中央リストの「編集」ボタンから行う＝Step3で実装）
