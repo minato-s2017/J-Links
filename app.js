@@ -38,7 +38,7 @@ function toggleTheme() {
 
 async function init() {
   $("dateSub").textContent = `版 ${APP_BUILD}`;
-  applyTheme(localStorage.getItem(THEME_KEY) || "dark");
+  applyTheme(localStorage.getItem(THEME_KEY) || "light");
   const sf = localStorage.getItem("saveFolder"); if (sf) $("saveFolder").value = sf;
   const pn = localStorage.getItem("projName"); if (pn) $("projName").value = pn;
   $("projName").addEventListener("change", e => localStorage.setItem("projName", e.target.value.trim()));
@@ -59,7 +59,7 @@ async function init() {
   }
   const lk = $("btnLock");
   if (lk) lk.onclick = () => { localStorage.removeItem("jl_pw"); location.reload(); };
-  applyMultiUI(true);   // デフォルトで複数選択ON
+  applyMultiUI(false);  // デフォルトで単体選択
   bind();
   renderList();
   buildShapeToggles();  // H/B 100刻みトグルを生成

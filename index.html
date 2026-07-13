@@ -8,15 +8,15 @@
 <link rel="icon" href="icon/favicon.ico?v=lynx3" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="icon/favicon-32.png?v=lynx3">
 <link rel="apple-touch-icon" href="icon/apple-touch-icon.png?v=lynx3">
-<link rel="stylesheet" href="style.css?v=shape2">
-<script>try{if(localStorage.getItem('joint_list_theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>
+<link rel="stylesheet" href="style.css?v=nm4">
+<script>try{var t=localStorage.getItem('joint_list_theme');document.documentElement.setAttribute('data-theme',t==='dark'?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}</script>
 </head>
 <body>
 <!-- ===== パスワード（暗号データ復号）ゲート ===== -->
 <div id="authOverlay" class="auth-overlay">
   <form id="authForm" class="auth-box" autocomplete="off">
-    <img class="auth-icon" src="icon/joint-links_lock2.webp?v=lock2" alt="Joint-Links">
-    <h2>Joint-Links</h2>
+    <img class="auth-logo logo-light" src="icon/main/light_t.webp?v=nm4" alt="Joint-Links">
+    <img class="auth-logo logo-dark" src="icon/main/dark_t.webp?v=nm4" alt="Joint-Links">
     <p class="auth-msg">パスワードを入力してください</p>
     <input id="authPass" type="password" class="auth-input" placeholder="パスワード" autocomplete="off">
     <label class="auth-remember"><input id="authRemember" type="checkbox" checked> この端末で次回から省略</label>
@@ -27,16 +27,16 @@
 
 <header class="topbar">
   <div class="topbar-title">
-    <img class="title-icon" src="icon/appmark-256.png?v=lynx3" alt="Joint-Links ロゴ">
+    <img class="title-logo logo-light" src="icon/main/light_t.webp?v=nm4" alt="Joint-Links">
+    <img class="title-logo logo-dark" src="icon/main/dark_t.webp?v=nm4" alt="Joint-Links">
     <div>
-      <h1>Joint-Links</h1>
       <div class="proj-sub">プロジェクト: <input id="projName" placeholder="(任意)"> ・ <span id="dateSub">最終更新 …</span></div>
     </div>
   </div>
   <div class="topbar-stats">
     <button id="btnTheme" class="history-btn" title="ダークモード / ライトモード 切替">ダークモード</button>
     <button id="btnHistory" class="history-btn" title="過去の選択を呼び出す">履歴</button>
-    <button id="btnLock" class="history-btn" title="この端末の記憶を消してロック">🔒</button>
+    <button id="btnLock" class="history-btn" title="この端末の記憶を消してロック">ロック画面</button>
     <span id="selCount" class="cnt">選択 0 件</span>
   </div>
 </header>
@@ -45,11 +45,11 @@
 
   <!-- ===== 左: 絞り込み・入力 ===== -->
   <aside class="col col-left">
-    <input id="searchBox" type="search" class="search-input" placeholder="🔍 断面・接合で検索（例: 400x200）">
+    <input id="searchBox" type="search" class="search-input" placeholder="手動検索（例: 400x200）">
 
     <div class="seg" role="tablist">
       <button class="seg-btn active" data-mode="ref" role="tab" aria-selected="true">継手参照</button>
-      <button class="seg-btn" data-mode="bh" role="tab" aria-selected="false">BH材 手動</button>
+      <button class="seg-btn" data-mode="bh" role="tab" aria-selected="false">BH材継手</button>
     </div>
 
     <!-- 継手参照モード -->
@@ -82,11 +82,11 @@
 
       <!-- 追加shape: H / B を 100刻みでトグル選択（例: 300 → 302,390… 百の位=3 を全て抽出）。複数選択可。 -->
       <div class="frow shape-hb-row">
-        <label>H 選択<br><small class="hb-note">100刻み</small></label>
+        <label>H 選択<br><small class="hb-note">100</small></label>
         <div class="pill-group pill-hb pill-h" id="d_h_pills"></div>
       </div>
       <div class="frow shape-hb-row">
-        <label>B 選択<br><small class="hb-note">100刻み</small></label>
+        <label>B 選択<br><small class="hb-note">100</small></label>
         <div class="pill-group pill-hb pill-b" id="d_b_pills"></div>
       </div>
 
@@ -135,8 +135,8 @@
 
         <label class="fullspan bh-galv"><input type="checkbox" id="bh_galv"> メッキ（摩擦面 μ=0.4／無印は 0.45）</label>
         <div class="fullspan bh-auto">
-          <button id="btnAutoBH" type="button" class="primary">🔧 自動設計（断面→継手諸元）</button>
-          <button id="btnCalcBH" type="button" class="ghost small">📄 計算書 / 再検定</button>
+          <button id="btnAutoBH" type="button" class="primary">自動設計（断面→継手諸元）</button>
+          <button id="btnCalcBH" type="button" class="ghost small">計算書 / 再検定</button>
         </div>
         <div class="fullspan bh-hint2">SCSS §2.4 準拠（許容応力度設計＋第1種保有耐力接合 α確認）。自動設計の値は下で手動上書き可。</div>
 
