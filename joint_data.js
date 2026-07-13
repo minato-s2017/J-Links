@@ -33,15 +33,6 @@ const JointData = (() => {
     return Number.isNaN(f) ? 0 : Math.trunc(f);
   }
 
-  // Python の round()（偶数丸め＝banker's rounding）を再現。E1表示の互換用。
-  function _pyround(x) {
-    const f = Math.floor(x);
-    const d = x - f;
-    if (d > 0.5) return f + 1;
-    if (d < 0.5) return f;
-    return (f % 2 === 0) ? f : f + 1;  // ちょうど .5 は偶数側へ
-  }
-
   // ---- マーク（材質→形状・中央文字）----
 
   // 材質マーク形状: SS系→none / SM系→diamond(◇) / 490→circle(○) / それ以外→square(□)
@@ -70,7 +61,10 @@ const JointData = (() => {
     if (m % 2 === 0) center = p / 2 + p * (m / 2 - 1);
     else center = p * (m - 1) / 2;
     const e1 = H / 2 - center;
-    return String(_pyround(e1));
+    // E1 は H/2 −（p/2 の倍数）で必ず 0.5mm 刻みの量。従来は _pyround(偶数丸め)で整数化しており
+    // 87.5 → 88 のように半値が誤って繰り上がっていた（例: 175x175x7.5x11, m_wbolt=1 → 正 87.5）。
+    // 0.5刻みへ正規化(浮動小数の塵除去)し、半値はそのまま "87.5"、整数は "88" 等で表示する。
+    return String(Math.round(e1 * 2) / 2);
   }
 
   // ---- ボルト・プレート表記（data.py の _bolt_text / _plate_text）----
