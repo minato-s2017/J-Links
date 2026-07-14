@@ -285,6 +285,7 @@ def _draw_table(msp, rows, title=TITLE):
 # ============================================================
 # 各列を「箱(セル)」として扱う。12箱＝11データ列 ＋ 末尾の備考列。
 # BOX_W=箱の幅。テキストは (箱の左端 BOX_LEFT + 右寄せ量) の固定位置に左揃え（文字幅に依存しない）。
+#   ※ spl_l / N / M / E1 / P1 の各列のみ、同じ基準位置で中央揃え（CENTER_ALIGN_KEYS）。
 BOX_W = [1650, 720, 780, 840, 510, 750, 300, 300, 375, 375, 1500, 3100]  # 箱の幅（末尾=備考）
 # 箱の左端からテキストを右へ寄せる量。先頭(断面)列だけ「頭マーク」の幅で変わる:
 #   頭マークが "H"     → BOX_SHIFT_H[0]  = 463
@@ -299,6 +300,9 @@ DATA_COL_KEYS = ["section", "f_bolt", "spl1", "spl2", "spl_l",
                  "w_bolt", "N", "M", "E1", "P1", "spl3"]
 MARKED_COL_INDEX = {0, 2, 3, 10}  # section, S PL-1, S PL-2, S PL-3
 REMARKS_BOX_INDEX = 11            # 備考＝12番目の箱（index 11）
+# 値を中央揃えにする列（それ以外は従来どおり左揃え）。基準X(tx)は動かさず、アンカーのみ中央。
+#   フランジ継手 S PL-L(spl_l)、ウェブ継手 N / M / E1 / P1。
+CENTER_ALIGN_KEYS = {"spl_l", "N", "M", "E1", "P1"}
 
 DATA_ROW_H = 210.0          # 行高さ（仕様）
 DATA_TXT_H = 90.0           # ⑦のTextHeight 0.90 を ×100 して mm 換算
@@ -320,6 +324,7 @@ def _shift_for_head(head):
 def _draw_data_only(msp, rows):
     """データのみ（罫線・見出しなし）を描画。基点を左上(0,0)に置く。
     ・各列は「箱(セル)」。値テキストは (箱の左端 BOX_LEFT + 右寄せ量) に左揃え(MIDDLE_LEFT)。
+      ただし spl_l / N / M / E1 / P1 は同じ基準位置で中央揃え(MIDDLE_CENTER)。
       右寄せ量は頭マーク(H / SH・BH)で先頭(断面)列だけ変わる（_shift_for_head）。
     ・テキスト/Bマークの y は「箱の下端」から上へ TEXT_Y_FROM_BOTTOM(=105)。
     ・Bマーク(□/○/◇ ＋ A/B): 先頭(断面)列は (箱の左端 + MARK_SHIFT_FIRST=270) に中心。
@@ -341,11 +346,14 @@ def _draw_data_only(msp, rows):
                 has_mark = bool(val) and mark_kind != "none"
             else:
                 has_mark = (i in MARKED_COL_INDEX) and ("PL-" in val) and mark_kind != "none"
-            # 値テキスト：箱内の固定位置に左揃え（文字幅に依存しない）
+            # 値テキスト：CENTER_ALIGN_KEYS の列は基準X(tx)を中心に中央揃え、
+            #   それ以外は従来どおり左揃え（基準Xは同じで、文字幅の扱いのみが異なる）。
             if val:
                 t = msp.add_text(val, dxfattribs={
                     "height": DATA_TXT_H, "layer": LYR_TEXT, "style": STYLE_ASCII})
-                t.set_placement((tx, y), align=TextEntityAlignment.MIDDLE_LEFT)
+                _val_align = (TextEntityAlignment.MIDDLE_CENTER
+                              if key in CENTER_ALIGN_KEYS else TextEntityAlignment.MIDDLE_LEFT)
+                t.set_placement((tx, y), align=_val_align)
             # Bマーク(□/○/◇ ＋ A/B)：箱の左端 + シフト量 を中心に配置（テキストと独立）
             if has_mark:
                 # ◇(diamond=SM490)だけ対角160(half=80)。□○は従来どおり135(half=67.5)。
