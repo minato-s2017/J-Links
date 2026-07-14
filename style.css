@@ -58,10 +58,10 @@ body{background:var(--bg); color:var(--text);
 
 /* ===== トップバー（フラット・境界は影のグラデ感のみ） ===== */
 .topbar{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
-  padding:12px 22px; background:var(--bg); border:none; gap:10px;}
+  padding:12px 22px 6px; background:var(--bg); border:none; gap:10px;}
 .topbar-title{display:flex; align-items:center; gap:16px}
 /* ロゴ（横長・猫＋Joint-Linksテキスト入り画像）。テーマ別に差し替え表示 */
-.title-logo{display:block; height:70px; width:auto;}
+.title-logo{display:block; height:140px; width:auto; margin:0;}
 /* 共通: ライト時はlogo-lightのみ、ダーク時はlogo-darkのみ表示（topbar/ロック画面 共通） */
 .logo-dark{display:none;}
 :root[data-theme="dark"] .logo-light{display:none;}
@@ -72,8 +72,18 @@ body{background:var(--bg); color:var(--text);
   color:var(--text); font-size:12px; padding:5px 10px; width:150px; font-weight:600;
   box-shadow:var(--sh-in-sm);}
 .proj-sub input:focus{outline:none; box-shadow:var(--sh-in-sm), 0 0 0 2px var(--accent2);}
+/* CAD一括出力内の保存名（履歴登録名）入力 */
+.cad-projname{font-size:12px; color:var(--muted); font-weight:600; margin-bottom:10px;}
+.cad-projname input{background:var(--field); border:none; border-radius:8px; color:var(--text);
+  font-size:12px; padding:7px 10px; width:100%; margin-top:5px; font-weight:600; box-shadow:var(--sh-in-sm);}
+.cad-projname input:focus{outline:none; box-shadow:var(--sh-in-sm), 0 0 0 2px var(--accent2);}
 .cnt{font-size:13px; color:var(--accent2); font-weight:700; padding:9px 16px; background:var(--bg);
   border-radius:18px; box-shadow:var(--sh-out-sm);}
+/* 右上の情報群：版表示を上段、操作ボタン群(テーマ/履歴/ロック/選択件数)を下段に縦積み */
+.topbar-stats{display:flex; flex-direction:column; align-items:flex-end; gap:6px;}
+.topbar-controls{display:flex; align-items:center; flex-wrap:wrap;}
+/* 版表示（右上・控えめ）＝ボタン行の上に配置 */
+.ver-sub{font-size:11px; color:var(--muted); font-weight:600; align-self:flex-end; margin-right:6px;}
 
 .history-btn{background:var(--bg); color:var(--accent2); border:none;
   border-radius:10px; padding:9px 16px; font-size:13px; min-height:38px; font-weight:600;
@@ -98,7 +108,7 @@ button.primary:active:not(:disabled){box-shadow:var(--sh-in);}
 button.accent{background:var(--bg); color:var(--accent); font-weight:700; box-shadow:var(--sh-out);}
 
 /* ===== 3カラムレイアウト（寸法は現行維持） ===== */
-.main3{display:grid; gap:18px; padding:18px;
+.main3{display:grid; gap:18px; padding:8px 18px 18px;
   grid-template-columns:460px minmax(0,1fr) 380px;
   align-items:start;}
 .col{background:var(--bg); border:none; border-radius:var(--radius); padding:20px;
@@ -144,8 +154,9 @@ button.accent{background:var(--bg); color:var(--accent); font-weight:700; box-sh
 
 .hit{color:var(--accent2); font-weight:700; font-size:12px}
 
-.shape-pick{display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap}
-.shape-pick select{flex:1; min-width:140px}
+/* 「複数選択」ボタンを断面選択リストの左横に置く（従来は上に折返していた） */
+.shape-pick{display:flex; gap:8px; align-items:flex-start; flex-wrap:nowrap}
+.shape-pick select{flex:1 1 auto; width:auto; min-width:140px}
 .multi-toggle{background:var(--bg); color:var(--muted); border:none;
   border-radius:9px; padding:8px 12px; font-size:12px; min-height:38px; white-space:nowrap;
   box-shadow:var(--sh-out-sm);}

@@ -19,7 +19,7 @@ const HIST_MAX = 20;
 const APP_BUILD = "2026-07-10s";
 // 材質グレード（データの SN400/SN490 を表示・マーク用に細分。6種を1列表示）
 const MATERIAL_GRADES = ["SS400", "SN400B", "SM490A", "SN490B"];
-const DEFAULT_MATERIAL = "SN400B";
+const DEFAULT_MATERIAL = "SS400";
 
 // ===== テーマ（ダーク/ライト）。<html data-theme> を切替え、localStorageに保存 =====
 const THEME_KEY = "joint_list_theme";
@@ -37,7 +37,7 @@ function toggleTheme() {
 }
 
 async function init() {
-  $("dateSub").textContent = `版 ${APP_BUILD}`;
+  $("dateSub").textContent = APP_BUILD;
   applyTheme(localStorage.getItem(THEME_KEY) || "light");
   const sf = localStorage.getItem("saveFolder"); if (sf) $("saveFolder").value = sf;
   const pn = localStorage.getItem("projName"); if (pn) $("projName").value = pn;
@@ -50,7 +50,7 @@ async function init() {
     // 4項目とも「ピル選択」方式。選択色は CSS の pill-blue/red/green/yellow で付与。
     buildPills("d_grade_pills", "d_grade", f.grade, "F10T");        // ボルト等級(緑) = F10T/F8T
     buildPills("d_type_pills", "d_type", f.type, "beam");           // 継手種別(青)  = beam/column
-    buildPills("d_bolt_pills", "d_bolt", f.bolt_size, "M20");       // ボルト径(黄)  = M16/M20/M22
+    buildPills("d_bolt_pills", "d_bolt", f.bolt_size, "M16");       // ボルト径(黄)  = M16/M20/M22
     // 母材鋼種(赤)は固定グレード（データは SN400/SN490 の2クラスだが表示・マーク用に細分）
     materials = MATERIAL_GRADES.slice();
     buildPills("d_material_pills", "d_material", materials, DEFAULT_MATERIAL);
@@ -202,7 +202,7 @@ function applyMultiUI(on) {
 function resetFilters() {
   buildPills("d_grade_pills", "d_grade", facets.grade, "F10T");
   buildPills("d_type_pills", "d_type", facets.type, "beam");
-  buildPills("d_bolt_pills", "d_bolt", facets.bolt_size, "M20");
+  buildPills("d_bolt_pills", "d_bolt", facets.bolt_size, "M16");
   buildPills("d_material_pills", "d_material", materials, DEFAULT_MATERIAL);
   ["d_h", "d_b", "d_tw", "d_tf"].forEach((id) => ($(id).value = ""));
   $("searchBox").value = "";
@@ -760,7 +760,7 @@ async function ensureDxfEngine() {
     await py.loadPackage("micropip");
     const micropip = py.pyimport("micropip");
     await micropip.install("ezdxf==1.4.3");   // ローカルPython版と同一バージョンに固定
-    const src = await (await fetch("./py/dxf_list.py")).text();
+    const src = await (await fetch("./py/dxf_list.py?v=htbolt1")).text();
     py.FS.writeFile("dxf_list.py", src);
     py.runPython(`
 import dxf_list, json

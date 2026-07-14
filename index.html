@@ -8,7 +8,7 @@
 <link rel="icon" href="icon/favicon.ico?v=lynx3" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="icon/favicon-32.png?v=lynx3">
 <link rel="apple-touch-icon" href="icon/apple-touch-icon.png?v=lynx3">
-<link rel="stylesheet" href="style.css?v=nm4">
+<link rel="stylesheet" href="style.css?v=nm5">
 <script>try{var t=localStorage.getItem('joint_list_theme');document.documentElement.setAttribute('data-theme',t==='dark'?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}</script>
 </head>
 <body>
@@ -29,15 +29,15 @@
   <div class="topbar-title">
     <img class="title-logo logo-light" src="icon/main/light_t.webp?v=nm4" alt="Joint-Links">
     <img class="title-logo logo-dark" src="icon/main/dark_t.webp?v=nm4" alt="Joint-Links">
-    <div>
-      <div class="proj-sub">保存名（履歴に登録する名前）: <input id="projName" placeholder="(任意)"> ・ <span id="dateSub">最終更新 …</span></div>
-    </div>
   </div>
   <div class="topbar-stats">
-    <button id="btnTheme" class="history-btn" title="ダークモード / ライトモード 切替">ダークモード</button>
-    <button id="btnHistory" class="history-btn" title="過去の選択を呼び出す">履歴</button>
-    <button id="btnLock" class="history-btn" title="この端末の記憶を消してロック">ロック画面</button>
-    <span id="selCount" class="cnt">選択 0 件</span>
+    <span id="dateSub" class="ver-sub">…</span>
+    <div class="topbar-controls">
+      <button id="btnTheme" class="history-btn" title="ダークモード / ライトモード 切替">ダークモード</button>
+      <button id="btnHistory" class="history-btn" title="過去の選択を呼び出す">履歴</button>
+      <button id="btnLock" class="history-btn" title="この端末の記憶を消してロック">ロック画面</button>
+      <span id="selCount" class="cnt">選択 0 件</span>
+    </div>
   </div>
 </header>
 
@@ -77,8 +77,8 @@
       <input type="hidden" id="d_family" value="">
       <input type="hidden" id="d_grade" value="F10T">
       <input type="hidden" id="d_type" value="beam">
-      <input type="hidden" id="d_material" value="SN400B">
-      <input type="hidden" id="d_bolt" value="M20">
+      <input type="hidden" id="d_material" value="SS400">
+      <input type="hidden" id="d_bolt" value="M16">
 
       <!-- 追加shape: H / B を 100刻みでトグル選択（例: 300 → 302,390… 百の位=3 を全て抽出）。複数選択可。 -->
       <div class="frow shape-hb-row">
@@ -195,6 +195,8 @@
   <aside class="col col-right">
     <div class="cad-out">
       <div class="cad-out-head">⊞ CAD 一括出力</div>
+      <div class="cad-projname">保存名（履歴に登録する名前）:
+        <input id="projName" placeholder="(任意)"></div>
       <div class="cad-info">出力形式: <b>DXF</b>（データのみ）／レイヤ: TEXT・DEFPOINTS</div>
       <input id="saveFolder" type="text" class="save-input" placeholder="保存先(任意・サーバ側パス)" style="display:none">
       <button id="btnDownload" class="cad-out-btn" disabled>選択した <span id="outCount">0</span> 件を出力 ↗</button>
@@ -309,6 +311,6 @@
 
 <script src="joint_data.js?v=e1fix"></script>
 <script src="bh_design.js?v=bh2"></script>
-<script src="app.js?v=shape1"></script>
+<script src="app.js?v=shape2"></script>
 </body>
 </html>

@@ -173,15 +173,17 @@ const JointData = (() => {
         return true;
       });
     }
-    // 100刻みトグル（H/B の「百の位」帯で絞る。例: 300 → 300〜399 を全て）。複数選択は OR。
+    // 100刻みトグル。バケット境界を下へシフト: H=floor((H+20)/100)*100、B=floor((B+10)/100)*100。
+    //   各バケットVの範囲 → H:[V-20,V+80)、B:[V-10,V+90)。例: H200=180〜279、H=428→400、H=388→400。
+    //   複数選択は OR。hundreds() の候補算出と同じ式で整合させる。
     const hb = Array.isArray(hBuckets) ? hBuckets.map(Number).filter((n) => !Number.isNaN(n)) : [];
     const bb = Array.isArray(bBuckets) ? bBuckets.map(Number).filter((n) => !Number.isNaN(n)) : [];
     if (hb.length || bb.length) {
-      const band = (v) => { const n = parseFloat(v); return Number.isNaN(n) ? null : Math.floor(n / 100) * 100; };
+      const band = (v, off) => { const n = parseFloat(v); return Number.isNaN(n) ? null : Math.floor((n + off) / 100) * 100; };
       out = out.filter((r) => {
         const toks = String(r.shape || "").split("x");
-        if (hb.length) { const H = band(toks[0]); if (H === null || !hb.includes(H)) return false; }
-        if (bb.length) { const B = band(toks[1]); if (B === null || !bb.includes(B)) return false; }
+        if (hb.length) { const H = band(toks[0], 20); if (H === null || !hb.includes(H)) return false; }
+        if (bb.length) { const B = band(toks[1], 10); if (B === null || !bb.includes(B)) return false; }
         return true;
       });
     }
@@ -199,8 +201,8 @@ const JointData = (() => {
     for (const r of base) {
       const toks = String(r.shape || "").split("x");
       const H = parseFloat(toks[0]), B = parseFloat(toks[1]);
-      if (!Number.isNaN(H)) hs.add(Math.floor(H / 100) * 100);
-      if (!Number.isNaN(B)) bs.add(Math.floor(B / 100) * 100);
+      if (!Number.isNaN(H)) hs.add(Math.floor((H + 20) / 100) * 100);   // search と同じ -20 シフト境界
+      if (!Number.isNaN(B)) bs.add(Math.floor((B + 10) / 100) * 100);   // search と同じ -10 シフト境界
     }
     const asc = (x, y) => x - y;
     return { h: [...hs].sort(asc), b: [...bs].sort(asc) };
