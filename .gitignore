@@ -16,3 +16,6 @@ icon/logo-*-full.png
 icon/mark-*.png
 icon/favicon-16-*.png
 icon/260702_aincon.png
+
+# 退避した旧版・作業用ファイル（配布不要・ローカル保持のみ）
+_old/
