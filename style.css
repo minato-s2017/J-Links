@@ -309,7 +309,7 @@ table.joint-list tr.drop-after td{box-shadow:inset 0 -3px 0 0 var(--accent2)}
 .prev-doc-title{font-size:14px; margin-bottom:12px; color:var(--accent2); font-weight:700;
   letter-spacing:.5px}
 .prev-doc-table{border-collapse:separate; border-spacing:0; width:100%; border:none;
-  background:transparent; font-size:12px; border-radius:10px; overflow:hidden; box-shadow:var(--sh-out-sm);}
+  background:transparent; font-size:14px; border-radius:10px; overflow:hidden; box-shadow:var(--sh-out-sm);}
 .prev-doc-table th,.prev-doc-table td{border-bottom:1px solid var(--tline); border-right:1px solid var(--tline);
   padding:8px 10px; text-align:center; vertical-align:middle; color:var(--text);}
 .prev-doc-table thead th{background:var(--panel2); color:var(--accent2); font-weight:700;
@@ -317,14 +317,14 @@ table.joint-list tr.drop-after td{box-shadow:inset 0 -3px 0 0 var(--accent2)}
 .prev-doc-table tbody td{font-family:"Consolas","MS Gothic","Courier New",monospace;
   color:var(--text); white-space:nowrap; font-weight:600;}
 .prev-doc-table tbody td.sec{text-align:left; padding-left:10px; min-width:220px;
-  font-size:13px; font-weight:700;}
-.prev-doc-table tbody td.empty-em{color:var(--muted); opacity:.55; font-weight:400}
+  font-size:15px; font-weight:700;}
+.prev-doc-table tbody td.empty-em{color:var(--text); font-weight:700}
 .prev-doc-table tbody td.remarks-cell{text-align:left; padding-left:10px;
   font-family:"Meiryo","Hiragino Kaku Gothic ProN",sans-serif; min-width:140px; font-weight:600;}
 
 .prev-mark{display:inline-flex; align-items:center; justify-content:center;
   width:18px; height:18px; border:1.4px solid var(--text); font-size:11px; font-weight:700;
-  margin-right:6px; vertical-align:-2px; color:var(--text); line-height:1; background:transparent;}
+  margin-right:6px; vertical-align:1.5px; color:var(--text); line-height:1; background:transparent;}
 .prev-mark.circle{border-radius:50%}
 .prev-mark.square{border-radius:2px}
 .prev-mark.none{visibility:hidden}
@@ -412,7 +412,9 @@ table.joint-list tr.drop-after td{box-shadow:inset 0 -3px 0 0 var(--accent2)}
   .prev-doc{background:#fff !important; color:#000 !important; border:none !important;
     padding:0 !important; box-shadow:none !important;}
   .prev-doc-title{color:#000 !important}
-  .prev-doc-table{background:#fff !important; border:1.5px solid #000 !important; box-shadow:none !important;}
+  .prev-doc-table{background:#fff !important; border:1.5px solid #000 !important; box-shadow:none !important;
+    font-size:12px !important;}
+  .prev-doc-table tbody td.sec{font-size:13px !important;}
   .prev-doc-table th,.prev-doc-table td{border:1px solid #000 !important; color:#000 !important;
     background:#fff !important;}
   .prev-doc-table thead th{background:#fff !important;}
