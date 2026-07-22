@@ -204,6 +204,7 @@
         <input id="projName" placeholder="(任意)"></div>
       <div class="cad-info">出力形式: <b>DXF</b>（データのみ）／レイヤ: TEXT・DEFPOINTS</div>
       <input id="saveFolder" type="text" class="save-input" placeholder="保存先(任意・サーバ側パス)" style="display:none">
+      <label class="cad-pickdir" title="ONにすると保存ダイアログでフォルダを選べます（Chrome/Edge。未対応ブラウザは通常のダウンロード）" style="display:flex;align-items:center;gap:6px;font-size:12px;margin:4px 0;cursor:pointer;user-select:none"><input type="checkbox" id="chkPickFolder" style="width:auto;margin:0"> 保存先を選ぶ（Chrome/Edge）</label>
       <button id="btnDownload" class="cad-out-btn" disabled>選択した <span id="outCount">0</span> 件を出力 ↗</button>
       <button id="btnSave" class="ghost small fullw" disabled style="display:none">サーバへ保存</button>
       <div id="msg" class="msg"></div>
@@ -362,6 +363,6 @@
 
 <script src="joint_data.js?v=e1fix"></script>
 <script src="bh_design.js?v=bh2"></script>
-<script src="app.js?v=csv7"></script>
+<script src="app.js?v=csv8"></script>
 </body>
 </html>

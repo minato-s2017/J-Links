@@ -482,7 +482,9 @@ function buildCsvStage(csvRows) {
         material: r.material || cls, marks: [] });
     }
     const g = groups.get(key);
-    if (r.mark && !g.marks.includes(r.mark)) g.marks.push(r.mark);  // CSVは符号順＝そのまま
+    const _fl = String(r.floor || "").trim();
+    const _lab = !r.mark ? "" : (_fl ? `${r.mark} (${/^\d+$/.test(_fl) ? _fl + "FL" : _fl})` : r.mark);
+    if (_lab && !g.marks.includes(_lab)) g.marks.push(_lab);  // CSVは符号順＝そのまま
   }
   const staged = [];
   for (const g of groups.values()) {
@@ -996,6 +998,29 @@ async function doDownload() {
     window.__lastDxf = dxfText;   // 動作検証用（最終版で除去可）
     const dxfCRLF = dxfText.replace(/\r?\n/g, "\r\n");   // 元のWindows版に合わせ改行をCRLFへ
     const blob = new Blob([dxfCRLF], { type: "application/octet-stream" });
+
+    // 「保存先を選ぶ」がON かつ対応ブラウザ(Chrome/Edge)なら、保存ダイアログでフォルダを選択
+    const _fname = `鉄骨剛接合リスト_${ts()}.dxf`;
+    const _pick = $("chkPickFolder") && $("chkPickFolder").checked;
+    if (_pick && window.showSaveFilePicker) {
+      try {
+        const _h = await window.showSaveFilePicker({
+          suggestedName: _fname, id: "jointlinks-dxf", startIn: "downloads",
+          types: [{ description: "DXF file", accept: { "application/octet-stream": [".dxf"] } }],
+        });
+        const _w = await _h.createWritable();
+        await _w.write(blob);
+        await _w.close();
+        setMsg(`${selection.length} 件を DXF で保存しました（保存先を選択）`);
+        autoSnapshotHistory("DXF出力");
+        return;
+      } catch (err) {
+        if (err && err.name === "AbortError") { setMsg("保存をキャンセルしました"); return; }
+        setMsg("フォルダ選択に失敗→通常のダウンロードに切替えます: " + err, true);
+      }
+    } else if (_pick) {
+      setMsg("このブラウザはフォルダ選択に未対応のため Downloads に保存します（Chrome/Edge推奨）", true);
+    }
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url; a.download = `鉄骨剛接合リスト_${ts()}.dxf`;
