@@ -742,7 +742,7 @@ function renderList() {
           <button class="edit" data-uid="${r._uid}" title="編集（条件選択の変更）">✎</button>
           <button class="del" data-uid="${r._uid}" title="削除">✕</button>
         </div></td>
-        <td class="symbols">${r.symbols ? esc(r.symbols) : "—"}</td>
+        <td class="symbols">${r.symbols ? esc(r.symbols).replace(/・/g, "・<wbr>") : "—"}</td>
         <td class="section">${secMark}${esc(r.section || "")}${refBadgesHtml(r)}</td>
         <td class="remarks"><input type="text" data-uid="${r._uid}" value="${rem}" placeholder="備考"></td>
       </tr>`;

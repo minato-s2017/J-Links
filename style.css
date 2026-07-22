@@ -486,10 +486,11 @@ table.joint-list tr.drop-after td{box-shadow:inset 0 -3px 0 0 var(--accent2)}
 /* ===== CSV取込（Revit断面書き出し）===== */
 .csv-import{ margin:0 0 10px; }
 .csv-btn{ width:100%; }
-/* 使用符号 列 — 断面と同サイズ・同色・横一列 */
-table.joint-list th.symcol{ min-width:120px; }
+/* 使用符号 列 — 既定=符号3つ分の幅(150px)。超えたら折り返して縦に広がる。色は断面より少し薄め(opacity .72) */
+table.joint-list th.symcol{ width:150px; }
 table.joint-list td.symbols{ font-family:"Consolas",monospace; font-size:17px; font-weight:700;
-  color:var(--text); letter-spacing:.3px; text-align:left; white-space:nowrap; }
+  color:var(--text); opacity:.72; letter-spacing:.3px; text-align:left;
+  white-space:normal; overflow-wrap:break-word; }
 /* 仮決定モーダル — 大きく・視認性UP */
 .csv-dialog{ width:94vw; max-width:1120px; }
 .csv-summary{ font-size:16px; margin:2px 0 10px; }
