@@ -971,7 +971,7 @@ async function ensureDxfEngine() {
     await py.loadPackage("micropip");
     const micropip = py.pyimport("micropip");
     await micropip.install("ezdxf==1.4.3");   // ローカルPython版と同一バージョンに固定
-    const src = await (await fetch("./py/dxf_list.py?v=htbolt1")).text();
+    const src = await (await fetch("./py/dxf_list.py?v=htbolt2")).text();
     py.FS.writeFile("dxf_list.py", src);
     py.runPython(`
 import dxf_list, json

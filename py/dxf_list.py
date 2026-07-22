@@ -317,7 +317,7 @@ LYR_DEFPOINTS = "DEFPOINTS"
 # 空欄セル（joint_data.js の _plate_text が返す em-dash "—"）を CAD 上では長音記号「ー」で表す。
 #   ・対象は S PL-2 列（EMPTY_BAR_KEY）のみ。実データで空欄になり得るのはここだけで、
 #     S PL-1 / S PL-3 は必ず値が入る（ユーザー確認済）。
-#   ・グリフは romans.shx(ASCII) に無いため、和文スタイル STYLE_JP で描画。
+#   ・スタイルは _Kozo_Romans(STYLE_ASCII)。ユーザーCAD環境では _Kozo_Romans で「ー」が表示できる（_Kozo_JP は未定義で表示されないため避ける）。
 #   ・配置は「箱の左端 + EMPTY_BAR_SHIFT」に左揃え（S PL-2 の箱幅に合わせた位置）。
 EMPTY_BAR_KEY = "spl2"      # 対象列（S PL-2）
 EMPTY_BAR_SRC = "—"    # 検出対象: em-dash（joint_data の EMPTY_MARK）
@@ -364,13 +364,13 @@ def _draw_data_only(msp, rows):
             # 値テキスト：
             #   ・H.T.BOLT（フランジ/ウェブ）のボルト無し "-" は描かない（ユーザー指定で削除）。
             #   ・S PL-2 が空欄マーク "—" のときは「ー」を (箱の左端 + EMPTY_BAR_SHIFT) に
-            #     左揃えで配置。和文グリフのため STYLE_JP で描画（romans.shx には無い）。
+            #     左揃えで配置。STYLE_ASCII(_Kozo_Romans) で描画（ユーザーCAD側で表示できるスタイルに合わせる）。
             #   ・CENTER_ALIGN_KEYS の列は基準X(tx)を中心に中央揃え、それ以外は左揃え。
             if key in HTBOLT_KEYS and val == HTBOLT_EMPTY:
                 pass  # ボルト無しの "-" は出力しない
             elif key == EMPTY_BAR_KEY and val == EMPTY_BAR_SRC:
                 bar = msp.add_text(EMPTY_BAR_CHAR, dxfattribs={
-                    "height": DATA_TXT_H, "layer": LYR_TEXT, "style": STYLE_JP})
+                    "height": DATA_TXT_H, "layer": LYR_TEXT, "style": STYLE_ASCII})
                 bar.set_placement((BOX_LEFT[i] + EMPTY_BAR_SHIFT, y),
                                   align=TextEntityAlignment.MIDDLE_LEFT)
             elif val:
