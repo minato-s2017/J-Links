@@ -173,6 +173,15 @@ function bind() {
     [...$("editHeadGroup").querySelectorAll("button")].forEach((x) => x.classList.remove("active"));
     b.classList.add("active");
   });
+  // CSV取込（Revit断面）→ 仮決定モーダル
+  $("btnCsvImport").onclick = () => $("csvFile").click();
+  $("csvFile").addEventListener("change", onCsvSelected);
+  $("csvClose").onclick = closeCsvStage;
+  $("csvCancel").onclick = closeCsvStage;
+  $("csvReflect").onclick = reflectCsv;
+  $("csvBolt").addEventListener("change", (e) => { csvBoltMode = e.target.value; rebuildCsvStage(); });
+  $("csvCheckAll").addEventListener("change", (e) => toggleCsvAll(e.target.checked));
+  $("csvModal").addEventListener("click", (e) => { if (e.target === $("csvModal")) closeCsvStage(); });
 }
 
 function setMode(mode) {
@@ -384,6 +393,207 @@ function onBhCalcPrint() {
   setTimeout(() => { try { w.print(); } catch (e) { /* noop */ } }, 300);
 }
 
+// ===== CSV取込（Revit断面書き出し）=====
+// 列: 符号,使用階,継手種別,母材鋼種,H,B,t_w,t_f,断面サイズ（UTF-8 BOM）
+let csvStaged = [];
+let csvLastRows = [];       // 直近パースしたCSV行（ボルト径変更で再グループ用）
+let csvBoltMode = "auto";   // "auto"(M20→無ければM22) / "M16".."M24"
+
+function _splitCsvLine(line) {
+  const out = []; let cur = ""; let q = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (q) {
+      if (c === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; }
+      else cur += c;
+    } else {
+      if (c === '"') q = true;
+      else if (c === ",") { out.push(cur); cur = ""; }
+      else cur += c;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+
+function parseCsvText(text) {
+  text = String(text || "");
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);   // BOM除去
+  const lines = text.split(/\r\n|\n|\r/).filter((l) => l.trim() !== "");
+  if (lines.length < 2) return { rows: [], error: "データ行がありません" };
+  const header = _splitCsvLine(lines[0]).map((h) => h.trim());
+  const idx = (name) => header.indexOf(name);
+  const col = {
+    mark: idx("符号"), floor: idx("使用階"), type: idx("継手種別"),
+    material: idx("母材鋼種"), H: idx("H"), B: idx("B"),
+    tw: idx("t_w"), tf: idx("t_f"), size: idx("断面サイズ"),
+  };
+  for (const k of ["mark", "material", "H", "B", "tw", "tf"]) {
+    if (col[k] < 0) return { rows: [], error: "想定した列が見つかりません（符号/母材鋼種/H/B/t_w/t_f）" };
+  }
+  const rows = [];
+  for (let li = 1; li < lines.length; li++) {
+    const c = _splitCsvLine(lines[li]);
+    const g = (i) => (i >= 0 && i < c.length ? String(c[i]).trim() : "");
+    rows.push({
+      mark: g(col.mark), floor: g(col.floor), type: g(col.type),
+      material: g(col.material), H: g(col.H), B: g(col.B),
+      tw: g(col.tw), tf: g(col.tf), size: g(col.size),
+    });
+  }
+  return { rows, error: null };
+}
+
+// (H,B,tw,tf) をカタログ(DB)照合し 3状態を返す:
+//   {status:"hit", row, bolt}      … 断面あり＋選択ボルト径あり（採用可）
+//   {status:"bolt_na", availBolts} … 断面はあるが選択ボルト径の値だけ無い（BH材ではない）
+//   {status:"bh"}                  … 断面自体がカタログに無い（＝BH材・要検討）
+function catalogLookup(H, B, tw, tf, material) {
+  const want = `${H}x${B}x${tw}x${tf}`.replace(/\s/g, "").toLowerCase();
+  const matchShape = (rows) => (rows || []).filter(
+    (r) => String(r.shape || "").replace(/\s/g, "").toLowerCase() === want);
+  const search = (bolt) => {
+    try { return JointData.search({ grade: "F10T", type: "beam", material, bolt }); }
+    catch (e) { return { rows: [] }; }
+  };
+  // ① 選択ボルト径(auto=M20→無ければM22)で照合
+  const bolts = (csvBoltMode === "auto") ? ["M20", "M22"] : [csvBoltMode];
+  for (const bolt of bolts) {
+    const hit = matchShape(search(bolt).rows)[0];
+    if (hit) return { status: "hit", row: hit, bolt };
+  }
+  // ② 断面自体がカタログに在るか（ボルト径を問わず）
+  const availBolts = [...new Set(matchShape(search(undefined).rows)
+    .map((r) => r.bolt_size).filter(Boolean))];
+  if (availBolts.length) return { status: "bolt_na", availBolts };  // 断面は在る／選択径だけ無い
+  return { status: "bh" };                                          // 断面が無い＝BH材
+}
+
+// CSV行 → 断面(H,B,tw,tf,鋼種クラス)でグループ化＋使用符号集約＋カタログ照合
+function buildCsvStage(csvRows) {
+  const groups = new Map();
+  for (const r of csvRows) {
+    if (r.type && r.type.toUpperCase() !== "BEAM") continue;   // 現状は大梁(BEAM)のみ
+    if (!r.H || !r.B || !r.tw || !r.tf) continue;
+    const cls = /490/.test(String(r.material).toUpperCase()) ? "SN490" : "SN400";
+    const key = `${r.H}|${r.B}|${r.tw}|${r.tf}|${cls}`;
+    if (!groups.has(key)) {
+      groups.set(key, { H: r.H, B: r.B, tw: r.tw, tf: r.tf, cls,
+        material: r.material || cls, marks: [] });
+    }
+    const g = groups.get(key);
+    if (r.mark && !g.marks.includes(r.mark)) g.marks.push(r.mark);  // CSVは符号順＝そのまま
+  }
+  const staged = [];
+  for (const g of groups.values()) {
+    const lk = catalogLookup(g.H, g.B, g.tw, g.tf, g.material);
+    staged.push({
+      symbols: g.marks.join("・"),
+      shapeStr: `H-${g.H}x${g.B}x${g.tw}x${g.tf}`,
+      material: g.material,
+      status: lk.status,                       // "hit" | "bolt_na" | "bh"
+      hit: lk.status === "hit",
+      bolt: lk.bolt || null, row: lk.row || null,
+      availBolts: lk.availBolts || null,
+      _h: parseFloat(g.H) || 0, _b: parseFloat(g.B) || 0,
+    });
+  }
+  // 一致 → 径のみ無 → BH材 の順、各内はサイズ順
+  const rank = (s) => (s.status === "hit" ? 0 : (s.status === "bolt_na" ? 1 : 2));
+  staged.sort((a, b) => (rank(a) - rank(b)) || (a._h - b._h) || (a._b - b._b));
+  return staged;
+}
+
+function onCsvSelected(e) {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = "";                                  // 同じファイルを再選択できるように
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = parseCsvText(reader.result);
+      if (parsed.error) { setMsg("CSV取込: " + parsed.error, true); return; }
+      csvLastRows = parsed.rows;
+      csvStaged = buildCsvStage(csvLastRows);
+      if (!csvStaged.length) { setMsg("取込対象の断面がありません", true); return; }
+      openCsvStage();
+    } catch (err) { setMsg("CSV取込失敗: " + err, true); }
+  };
+  reader.onerror = () => setMsg("ファイル読込に失敗しました", true);
+  reader.readAsText(file, "utf-8");
+}
+
+function openCsvStage() { renderCsvStage(); $("csvModal").classList.remove("hidden"); }
+function closeCsvStage() { $("csvModal").classList.add("hidden"); }
+
+// ボルト径（一律）変更 → 同じCSV行で再グループ・再照合
+function rebuildCsvStage() {
+  if (!csvLastRows.length) return;
+  csvStaged = buildCsvStage(csvLastRows);
+  renderCsvStage();
+}
+
+function renderCsvStage() {
+  const nHit = csvStaged.filter((s) => s.status === "hit").length;
+  const nBoltNa = csvStaged.filter((s) => s.status === "bolt_na").length;
+  const nBh = csvStaged.filter((s) => s.status === "bh").length;
+  $("csvSummary").innerHTML =
+    `全 <b>${csvStaged.length}</b> 断面　`
+    + `<span class="csv-ok">カタログ一致 ${nHit}</span>　`
+    + `<span class="csv-warn">径カタログ無 ${nBoltNa}</span>　`
+    + `<span class="csv-ng">BH材(要検討) ${nBh}</span>`;
+  $("csvStageBody").innerHTML = csvStaged.map((s, i) => {
+    const head = (ck) =>
+      `<td class="csv-ck"><input type="checkbox" class="csv-chk" data-i="${i}"${ck}></td>`
+      + `<td class="csv-sym">${esc(s.symbols || "—")}</td>`
+      + `<td class="csv-shape">${esc(s.shapeStr)}</td>`
+      + `<td>${esc(s.material)}</td>`;
+    if (s.status === "hit") {
+      const fb = (s.row && s.row.f_bolt) ? s.row.f_bolt : "—";
+      const wb = (s.row && s.row.w_bolt) ? s.row.w_bolt : "—";
+      return `<tr class="csv-hit">${head(" checked")}`
+        + `<td class="csv-bolt">${esc(fb)}</td><td class="csv-bolt">${esc(wb)}</td>`
+        + `<td class="csv-ok">カタログ一致</td></tr>`;
+    }
+    if (s.status === "bolt_na") {
+      const av = (s.availBolts && s.availBolts.length) ? s.availBolts.join("・") : "—";
+      return `<tr class="csv-boltna">${head(" disabled")}`
+        + `<td class="csv-bolt">—</td><td class="csv-bolt">—</td>`
+        + `<td class="csv-warn">この径のカタログ値なし（在: ${esc(av)}）</td></tr>`;
+    }
+    return `<tr class="csv-bh">${head(" disabled")}`
+      + `<td class="csv-bolt">—</td><td class="csv-bolt">—</td>`
+      + `<td class="csv-ng">BH材のため検討が必要です</td></tr>`;
+  }).join("");
+  $("csvStageBody").querySelectorAll(".csv-chk").forEach((chk) => { chk.onchange = updateCsvSelCount; });
+  if ($("csvBolt")) $("csvBolt").value = csvBoltMode;
+  $("csvCheckAll").checked = nHit > 0;
+  updateCsvSelCount();
+}
+
+function updateCsvSelCount() {
+  const n = $("csvStageBody").querySelectorAll(".csv-chk:checked").length;
+  $("csvSelCount").textContent = n;
+  $("csvReflect").disabled = n === 0;
+}
+
+function toggleCsvAll(on) {
+  $("csvStageBody").querySelectorAll(".csv-chk:not(:disabled)").forEach((chk) => { chk.checked = on; });
+  updateCsvSelCount();
+}
+
+function reflectCsv() {
+  const rows = [];
+  $("csvStageBody").querySelectorAll(".csv-chk:checked").forEach((c) => {
+    const s = csvStaged[parseInt(c.dataset.i, 10)];
+    if (s && s.hit && s.row) rows.push({ ...s.row, symbols: s.symbols });
+  });
+  if (!rows.length) { setMsg("反映する断面を選択してください", true); return; }
+  addRows(rows);
+  closeCsvStage();
+  setMsg(`${rows.length} 断面を選択中リストへ反映しました`);
+}
+
 // ===== selection =====
 // 各行に一意の内部キー _uid を振る（複製は同じ DB id を持つため id では区別不可）
 let _uidCounter = 1;
@@ -520,7 +730,7 @@ function refBadgesHtml(r) {
 function renderList() {
   const body = $("listBody");
   if (!selection.length) {
-    body.innerHTML = `<tr><td colspan="3" class="empty">左の「継手参照」または「BH材 手動」から追加してください。</td></tr>`;
+    body.innerHTML = `<tr><td colspan="4" class="empty">左の「Revit CSV を取込」または「継手参照 / BH材 手動」から追加してください。</td></tr>`;
   } else {
     body.innerHTML = selection.map((r) => {
       const eff = effectiveMark(r);
@@ -532,6 +742,7 @@ function renderList() {
           <button class="edit" data-uid="${r._uid}" title="編集（条件選択の変更）">✎</button>
           <button class="del" data-uid="${r._uid}" title="削除">✕</button>
         </div></td>
+        <td class="symbols">${r.symbols ? esc(r.symbols) : "—"}</td>
         <td class="section">${secMark}${esc(r.section || "")}${refBadgesHtml(r)}</td>
         <td class="remarks"><input type="text" data-uid="${r._uid}" value="${rem}" placeholder="備考"></td>
       </tr>`;

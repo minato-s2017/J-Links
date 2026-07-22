@@ -8,7 +8,7 @@
 <link rel="icon" href="icon/favicon.ico?v=lynx3" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="icon/favicon-32.png?v=lynx3">
 <link rel="apple-touch-icon" href="icon/apple-touch-icon.png?v=lynx3">
-<link rel="stylesheet" href="style.css?v=nm6">
+<link rel="stylesheet" href="style.css?v=nm9">
 <script>try{var t=localStorage.getItem('joint_list_theme');document.documentElement.setAttribute('data-theme',t==='dark'?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}</script>
 </head>
 <body>
@@ -45,6 +45,10 @@
 
   <!-- ===== 左: 絞り込み・入力 ===== -->
   <aside class="col col-left">
+    <div class="csv-import">
+      <input id="csvFile" type="file" accept=".csv,text/csv" hidden>
+      <button id="btnCsvImport" type="button" class="primary fullw csv-btn">📄 Revit CSV を取込</button>
+    </div>
     <input id="searchBox" type="search" class="search-input" placeholder="手動検索（例: 400x200）">
 
     <div class="seg" role="tablist">
@@ -180,12 +184,13 @@
         <thead>
           <tr>
             <th class="actcol">操作</th>
+            <th class="symcol">使用符号</th>
             <th class="seccol">部材断面寸法（中央部材）<br><span class="sublbl">＋参照条件</span></th>
             <th class="remcol">備考</th>
           </tr>
         </thead>
         <tbody id="listBody">
-          <tr><td colspan="3" class="empty">左の「継手参照」または「BH材 手動」から追加してください。</td></tr>
+          <tr><td colspan="4" class="empty">左の「Revit CSV を取込」または「継手参照 / BH材 手動」から追加してください。</td></tr>
         </tbody>
       </table>
     </div>
@@ -309,8 +314,54 @@
   </div>
 </div>
 
+<!-- ===== CSV取込 仮決定モーダル ===== -->
+<div id="csvModal" class="hist-modal hidden">
+  <div class="hist-dialog csv-dialog">
+    <div class="hist-head">
+      <span class="hist-title">CSV取込 — 仮決定（内容を確認し、採用するものを反映）</span>
+      <button id="csvClose" class="x">✕</button>
+    </div>
+    <div class="hist-body">
+      <div id="csvSummary" class="csv-summary"></div>
+      <div class="csv-note">カタログ（DB）に在る断面のみ採用できます。カタログに無い断面は <b>BH材</b> として「検討が必要です」と表示され、採用できません（BH材の自動計算は今後対応）。</div>
+      <div class="csv-controls">
+        <label class="csv-bolt-lbl">ボルト径（一律）
+          <select id="csvBolt">
+            <option value="auto" selected>自動（M20→無ければM22）</option>
+            <option value="M16">M16 で照合</option>
+            <option value="M20">M20 で照合</option>
+            <option value="M22">M22 で照合</option>
+            <option value="M24">M24 で照合</option>
+          </select>
+        </label>
+        <span class="csv-bolt-note">径を変えると全断面のカタログ本数が切り替わります</span>
+      </div>
+      <div class="csv-scroll">
+        <table id="csvStageTable" class="csv-stage-table">
+          <thead>
+            <tr>
+              <th class="csv-ck"><input type="checkbox" id="csvCheckAll" title="採用可を全選択/解除"></th>
+              <th>使用符号</th>
+              <th>断面</th>
+              <th>鋼種</th>
+              <th>フランジ継手<br><small>H.T.B（本数）</small></th>
+              <th>ウェブ継手<br><small>H.T.B（本数）</small></th>
+              <th>状態</th>
+            </tr>
+          </thead>
+          <tbody id="csvStageBody"></tbody>
+        </table>
+      </div>
+      <div class="hist-actions">
+        <button id="csvReflect" class="small primary">選択した <span id="csvSelCount">0</span> 件を選択中リストへ反映</button>
+        <button id="csvCancel" class="small ghost">閉じる</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="joint_data.js?v=e1fix"></script>
 <script src="bh_design.js?v=bh2"></script>
-<script src="app.js?v=shape2"></script>
+<script src="app.js?v=csv4"></script>
 </body>
 </html>
