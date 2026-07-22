@@ -486,11 +486,11 @@ table.joint-list tr.drop-after td{box-shadow:inset 0 -3px 0 0 var(--accent2)}
 /* ===== CSV取込（Revit断面書き出し）===== */
 .csv-import{ margin:0 0 10px; }
 .csv-btn{ width:100%; }
-/* 使用符号 列 — 既定=符号3つ分の幅(150px)。超えたら折り返して縦に広がる。色は断面より少し薄め(opacity .72) */
-table.joint-list th.symcol{ width:150px; }
+/* 使用符号 列 — 折り返さず横一列(1列)。文字は元の17px。列幅を約3/5(150px→90px)に圧縮。色は少し薄め(opacity .72) */
+table.joint-list th.symcol{ width:90px; }
 table.joint-list td.symbols{ font-family:"Consolas",monospace; font-size:17px; font-weight:700;
   color:var(--text); opacity:.72; letter-spacing:.3px; text-align:left;
-  white-space:normal; overflow-wrap:break-word; }
+  white-space:nowrap; }
 /* 仮決定モーダル — 大きく・視認性UP */
 .csv-dialog{ width:94vw; max-width:1120px; }
 .csv-summary{ font-size:16px; margin:2px 0 10px; }
@@ -510,7 +510,7 @@ table.joint-list td.symbols{ font-family:"Consolas",monospace; font-size:17px; f
 .csv-stage-table thead th small{ color:var(--muted); font-weight:400; font-size:11px; }
 .csv-stage-table td.csv-ck,.csv-stage-table th.csv-ck{ width:40px; text-align:center; }
 .csv-stage-table td.csv-ck input{ width:18px; height:18px; }
-.csv-stage-table td.csv-sym{ font-family:"Consolas",monospace; font-weight:700; color:var(--text); max-width:260px; white-space:normal; word-break:break-word; }
+.csv-stage-table td.csv-sym{ font-family:"Consolas",monospace; font-weight:700; color:var(--text); white-space:nowrap; }
 .csv-stage-table td.csv-shape{ font-family:"Consolas",monospace; font-weight:700; color:var(--text); white-space:nowrap; }
 .csv-stage-table td.csv-bolt{ font-family:"Consolas",monospace; white-space:nowrap; }
 .csv-ok{ color:var(--grid); font-weight:700; }
@@ -518,3 +518,6 @@ table.joint-list td.symbols{ font-family:"Consolas",monospace; font-size:17px; f
 .csv-ng{ color:var(--danger); font-weight:700; }
 .csv-stage-table tr.csv-boltna td{ background:rgba(227,179,65,.09); }
 .csv-stage-table tr.csv-bh td{ background:rgba(240,106,99,.06); }
+/* 仮決定モーダルのアクション: 反映・閉じるを同サイズで大きく・右下に配置(右=反映,左=閉じる) */
+.csv-actions{ justify-content:flex-end; align-items:center; gap:12px; margin-top:4px; }
+.csv-actions button{ font-size:16px; padding:16px 34px; min-height:58px; border-radius:14px; }
