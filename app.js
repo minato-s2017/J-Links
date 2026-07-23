@@ -469,17 +469,41 @@ function catalogLookup(H, B, tw, tf, material) {
   return { status: "bh" };                                          // 断面が無い＝BH材
 }
 
-// CSV行 → 断面(H,B,tw,tf,鋼種クラス)でグループ化＋使用符号集約＋カタログ照合
+// CSVの母材鋼種を正準グレードへ正規化する。
+//  ・SN400→SN400B / SN490→SN490B / SM490→SM490A のように、A/B 表記が無くても既定サフィックスを補う。
+//  ・空欄・「-1」・「構造フレーム」等の鋼種として解釈できない値(Revitで材質未設定のケース)は既定の "SN400B"。
+//  ・SN490B のように既に完全表記ならそのまま採用。
+// ※ Revit 側は材質未設定だと空欄/無関係な値を出しうるため、取込側(ここ)で確実に鋼種を確定させる。
+const CSV_GRADE_DEFAULT = "SN400B";
+function normalizeMaterialGrade(raw) {
+  const s = String(raw == null ? "" : raw).toUpperCase();
+  // 鋼種トークン抽出(長い接頭辞を先に): SNR/STKN/STKR/STK/SN/SM/SS/BCR/BCP/SSC + 3桁 + 任意A/B/C
+  const m = s.match(/(SNR|STKN|STKR|STK|SN|SM|SS|BCR|BCP|SSC)\s*(\d{3})\s*([ABC])?/);
+  if (!m) return CSV_GRADE_DEFAULT;                 // 空欄・「-1」・「構造フレーム」等 → 既定
+  const prefix = m[1], num = m[2];
+  let suffix = m[3] || "";
+  if (!suffix) {
+    // 完全表記が無い場合の既定サフィックス:
+    //   SS系→無し(SS400) / SM系→A(SM490A) / それ以外(SN/SNR/BCR…)→B(SN400B/SN490B)
+    if (prefix === "SS") suffix = "";
+    else if (prefix === "SM") suffix = "A";
+    else suffix = "B";
+  }
+  return prefix + num + suffix;
+}
+
+// CSV行 → 断面(H,B,tw,tf,確定グレード)でグループ化＋使用符号集約＋カタログ照合
 function buildCsvStage(csvRows) {
   const groups = new Map();
   for (const r of csvRows) {
     if (r.type && r.type.toUpperCase() !== "BEAM") continue;   // 現状は大梁(BEAM)のみ
     if (!r.H || !r.B || !r.tw || !r.tf) continue;
-    const cls = /490/.test(String(r.material).toUpperCase()) ? "SN490" : "SN400";
-    const key = `${r.H}|${r.B}|${r.tw}|${r.tf}|${cls}`;
+    const grade = normalizeMaterialGrade(r.material);          // 母材鋼種を確定(空欄/無関係→SN400B, SN400→SN400B 等)
+    const cls = /490/.test(grade) ? "SN490" : "SN400";
+    const key = `${r.H}|${r.B}|${r.tw}|${r.tf}|${grade}`;      // 確定グレード単位でグループ化(同断面の別グレードは別行)
     if (!groups.has(key)) {
       groups.set(key, { H: r.H, B: r.B, tw: r.tw, tf: r.tf, cls,
-        material: r.material || cls, marks: [] });
+        material: grade, marks: [] });
     }
     const g = groups.get(key);
     const _fl = String(r.floor || "").trim();
