@@ -444,16 +444,17 @@ function parseCsvText(text) {
   return { rows, error: null };
 }
 
-// (H,B,tw,tf) をカタログ(DB)照合し 3状態を返す:
+// (種別,H,B,tw,tf) をカタログ(DB)照合し 3状態を返す:
 //   {status:"hit", row, bolt}      … 断面あり＋選択ボルト径あり（採用可）
 //   {status:"bolt_na", availBolts} … 断面はあるが選択ボルト径の値だけ無い（BH材ではない）
 //   {status:"bh"}                  … 断面自体がカタログに無い（＝BH材・要検討）
-function catalogLookup(H, B, tw, tf, material) {
+// memberType = "beam"(大梁) / "column"(柱)。柱は柱カタログ、梁は梁カタログで照合する。
+function catalogLookup(memberType, H, B, tw, tf, material) {
   const want = `${H}x${B}x${tw}x${tf}`.replace(/\s/g, "").toLowerCase();
   const matchShape = (rows) => (rows || []).filter(
     (r) => String(r.shape || "").replace(/\s/g, "").toLowerCase() === want);
   const search = (bolt) => {
-    try { return JointData.search({ grade: "F10T", type: "beam", material, bolt }); }
+    try { return JointData.search({ grade: "F10T", type: memberType, material, bolt }); }
     catch (e) { return { rows: [] }; }
   };
   // ① 選択ボルト径(auto=M20→無ければM22)で照合
@@ -492,17 +493,26 @@ function normalizeMaterialGrade(raw) {
   return prefix + num + suffix;
 }
 
-// CSV行 → 断面(H,B,tw,tf,確定グレード)でグループ化＋使用符号集約＋カタログ照合
+// 継手種別(CSVの値) → カタログ照合用の type。BEAM/空欄→beam, COLUMN→column, それ以外(小梁等)→null(除外)。
+function csvMemberType(rawType) {
+  const t = String(rawType || "").toUpperCase().trim();
+  if (t === "COLUMN") return "column";
+  if (t === "BEAM" || t === "") return "beam";
+  return null;
+}
+
+// CSV行 → (種別,断面H,B,tw,tf,確定グレード)でグループ化＋使用符号集約＋カタログ照合
 function buildCsvStage(csvRows) {
   const groups = new Map();
   for (const r of csvRows) {
-    if (r.type && r.type.toUpperCase() !== "BEAM") continue;   // 現状は大梁(BEAM)のみ
+    const memberType = csvMemberType(r.type);                  // 大梁(beam)・柱(column)を対象。小梁等は除外
+    if (memberType === null) continue;
     if (!r.H || !r.B || !r.tw || !r.tf) continue;
     const grade = normalizeMaterialGrade(r.material);          // 母材鋼種を確定(空欄/無関係→SN400B, SN400→SN400B 等)
     const cls = /490/.test(grade) ? "SN490" : "SN400";
-    const key = `${r.H}|${r.B}|${r.tw}|${r.tf}|${grade}`;      // 確定グレード単位でグループ化(同断面の別グレードは別行)
+    const key = `${memberType}|${r.H}|${r.B}|${r.tw}|${r.tf}|${grade}`;  // 種別×断面×確定グレードでグループ化
     if (!groups.has(key)) {
-      groups.set(key, { H: r.H, B: r.B, tw: r.tw, tf: r.tf, cls,
+      groups.set(key, { memberType, H: r.H, B: r.B, tw: r.tw, tf: r.tf, cls,
         material: grade, marks: [] });
     }
     const g = groups.get(key);
@@ -512,8 +522,10 @@ function buildCsvStage(csvRows) {
   }
   const staged = [];
   for (const g of groups.values()) {
-    const lk = catalogLookup(g.H, g.B, g.tw, g.tf, g.material);
+    const lk = catalogLookup(g.memberType, g.H, g.B, g.tw, g.tf, g.material);
     staged.push({
+      memberType: g.memberType,                // "beam" | "column"
+      typeLabel: g.memberType === "column" ? "柱" : "大梁",
       symbols: g.marks.join("・"),
       shapeStr: `H-${g.H}x${g.B}x${g.tw}x${g.tf}`,
       material: g.material,
@@ -524,9 +536,10 @@ function buildCsvStage(csvRows) {
       _h: parseFloat(g.H) || 0, _b: parseFloat(g.B) || 0,
     });
   }
-  // 一致 → 径のみ無 → BH材 の順、各内はサイズ順
+  // 柱→大梁 の順、状態(一致→径のみ無→BH材)、各内はサイズ順
   const rank = (s) => (s.status === "hit" ? 0 : (s.status === "bolt_na" ? 1 : 2));
-  staged.sort((a, b) => (rank(a) - rank(b)) || (a._h - b._h) || (a._b - b._b));
+  const tOrder = (s) => (s.memberType === "column" ? 0 : 1);
+  staged.sort((a, b) => (tOrder(a) - tOrder(b)) || (rank(a) - rank(b)) || (a._h - b._h) || (a._b - b._b));
   return staged;
 }
 
@@ -563,8 +576,10 @@ function renderCsvStage() {
   const nHit = csvStaged.filter((s) => s.status === "hit").length;
   const nBoltNa = csvStaged.filter((s) => s.status === "bolt_na").length;
   const nBh = csvStaged.filter((s) => s.status === "bh").length;
+  const nCol = csvStaged.filter((s) => s.memberType === "column").length;
+  const nBeam = csvStaged.filter((s) => s.memberType === "beam").length;
   $("csvSummary").innerHTML =
-    `全 <b>${csvStaged.length}</b> 断面　`
+    `全 <b>${csvStaged.length}</b> 断面（柱 ${nCol} / 大梁 ${nBeam}）　`
     + `<span class="csv-ok">カタログ一致 ${nHit}</span>　`
     + `<span class="csv-warn">径カタログ無 ${nBoltNa}</span>　`
     + `<span class="csv-ng">BH材(要検討) ${nBh}</span>`;
@@ -572,6 +587,7 @@ function renderCsvStage() {
     const head = (ck) =>
       `<td class="csv-ck"><input type="checkbox" class="csv-chk" data-i="${i}"${ck}></td>`
       + `<td class="csv-sym">${esc(s.symbols || "—")}</td>`
+      + `<td class="csv-type">${esc(s.typeLabel)}</td>`
       + `<td class="csv-shape">${esc(s.shapeStr)}</td>`
       + `<td>${esc(s.material)}</td>`;
     if (s.status === "hit") {

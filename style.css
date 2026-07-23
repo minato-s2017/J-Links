@@ -512,6 +512,7 @@ table.joint-list td.symbols{ font-family:"Consolas",monospace; font-size:17px; f
 .csv-stage-table td.csv-ck input{ width:18px; height:18px; }
 .csv-stage-table td.csv-sym{ font-family:"Consolas",monospace; font-weight:700; color:var(--text); white-space:nowrap; }
 .csv-stage-table td.csv-shape{ font-family:"Consolas",monospace; font-weight:700; color:var(--text); white-space:nowrap; }
+.csv-stage-table td.csv-type{ white-space:nowrap; text-align:center; font-weight:700; color:var(--accent2); }
 .csv-stage-table td.csv-bolt{ font-family:"Consolas",monospace; white-space:nowrap; }
 .csv-ok{ color:var(--grid); font-weight:700; }
 .csv-warn{ color:var(--accent); font-weight:700; }
