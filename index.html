@@ -8,7 +8,7 @@
 <link rel="icon" href="icon/favicon.ico?v=lynx3" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="icon/favicon-32.png?v=lynx3">
 <link rel="apple-touch-icon" href="icon/apple-touch-icon.png?v=lynx3">
-<link rel="stylesheet" href="style.css?v=nm15">
+<link rel="stylesheet" href="style.css?v=nm16">
 <script>try{var t=localStorage.getItem('joint_list_theme');document.documentElement.setAttribute('data-theme',t==='dark'?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}</script>
 </head>
 <body>
@@ -174,6 +174,7 @@
     <div class="panel-head">
       <h3>選択中のリスト <span class="prev-hint">詳細はプレビューを参照</span></h3>
       <div class="panel-btns">
+        <button id="btnShowFloors" class="small floors-toggle" aria-pressed="false" title="使用符号の使用階を常に表示（OFFのときは符号にカーソルを合わせると表示）">使用階</button>
         <button id="btnBulkHead" class="small bulk-head" title="リスト全体の頭マークを H ⇄ SH で一括切替（BH材は対象外）" disabled>全てSHに</button>
         <button id="btnSortSize" class="small">▼ サイズ順</button>
         <button id="btnClear" class="small" disabled>クリア</button>
@@ -364,6 +365,6 @@
 
 <script src="joint_data.js?v=e1fix"></script>
 <script src="bh_design.js?v=bh2"></script>
-<script src="app.js?v=csv10"></script>
+<script src="app.js?v=csv11"></script>
 </body>
 </html>

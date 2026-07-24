@@ -273,6 +273,9 @@ table.joint-list td.remarks input:focus{outline:none; box-shadow:var(--sh-in-sm)
 .act-cell .edit{background:var(--bg); color:var(--accent2)}
 .panel-btns .bulk-head{color:var(--accent2);}
 .panel-btns .bulk-head:disabled{color:var(--muted);}
+/* 使用階トグル: ONで強調（multi-toggle と同系の見た目） */
+.panel-btns .floors-toggle{color:var(--accent2);}
+.panel-btns .floors-toggle[aria-pressed="true"]{font-weight:700; background:var(--sel); box-shadow:var(--sh-in-sm);}
 
 /* ドラッグ&ドロップ並べ替え */
 .drag-handle{display:inline-flex; align-items:center; justify-content:center;
@@ -490,13 +493,15 @@ table.joint-list tr.drop-after td{box-shadow:inset 0 -3px 0 0 var(--accent2)}
 /* ===== CSV取込（Revit断面書き出し）===== */
 .csv-import{ margin:0 0 10px; }
 .csv-btn{ width:100%; }
-/* 使用符号 列 — 折り返さず横一列(1列)。文字は元の17px。列幅を約3/5(150px→90px)に圧縮。色は少し薄め(opacity .72) */
-table.joint-list th.symcol{ width:90px; }
+/* 使用符号 列 — 符号が多いときは符号単位で折り返す（横スクロール回避）。約10個/行の幅。文字は元の17px。色は少し薄め(opacity .72) */
+table.joint-list th.symcol{ width:620px; }
 table.joint-list td.symbols{ font-family:"Consolas",monospace; font-size:17px; font-weight:700;
   color:var(--text); opacity:.72; letter-spacing:.3px; text-align:left;
-  white-space:nowrap; }
-/* 仮決定モーダル — 大きく・視認性UP */
-.csv-dialog{ width:94vw; max-width:1120px; }
+  white-space:normal; line-height:1.7; vertical-align:middle; }
+/* 使用階を常時表示する単位「符号 (階)」は途中で分断しない（1単位で保持・単位間で折返す） */
+.sym-unit{ white-space:nowrap; }
+/* 仮決定モーダル — 大きく・視認性UP（継手見出しを1行表示＋使用符号が約7個/行で折り返せる幅） */
+.csv-dialog{ width:95vw; max-width:1440px; }
 .csv-summary{ font-size:16px; margin:2px 0 10px; }
 .csv-summary b{ color:var(--accent2); }
 .csv-note{ font-size:13px; color:var(--muted); line-height:1.6; margin-bottom:10px; }
@@ -510,11 +515,12 @@ table.joint-list td.symbols{ font-family:"Consolas",monospace; font-size:17px; f
 .csv-scroll{ max-height:64vh; overflow:auto; border-radius:var(--radius-sm); box-shadow:var(--sh-in-sm); }
 .csv-stage-table{ width:100%; border-collapse:collapse; font-size:15px; }
 .csv-stage-table th,.csv-stage-table td{ border-bottom:1px solid var(--tline); padding:10px 14px; text-align:left; }
-.csv-stage-table thead th{ position:sticky; top:0; background:var(--thead); color:var(--accent2); font-weight:700; z-index:1; font-size:13px; }
+.csv-stage-table thead th{ position:sticky; top:0; background:var(--thead); color:var(--accent2); font-weight:700; z-index:1; font-size:13px; white-space:nowrap; }
 .csv-stage-table thead th small{ color:var(--muted); font-weight:400; font-size:11px; }
 .csv-stage-table td.csv-ck,.csv-stage-table th.csv-ck{ width:40px; text-align:center; }
 .csv-stage-table td.csv-ck input{ width:18px; height:18px; }
-.csv-stage-table td.csv-sym{ font-family:"Consolas",monospace; font-weight:700; color:var(--text); white-space:nowrap; }
+.csv-stage-table td.csv-sym{ font-family:"Consolas",monospace; font-weight:700; color:var(--text);
+  white-space:normal; width:380px; line-height:1.6; vertical-align:middle; }
 .csv-stage-table td.csv-shape{ font-family:"Consolas",monospace; font-weight:700; color:var(--text); white-space:nowrap; }
 .csv-stage-table td.csv-type{ white-space:nowrap; text-align:center; font-weight:700; color:var(--accent2); }
 .csv-stage-table td.csv-bolt{ font-family:"Consolas",monospace; white-space:nowrap; }
@@ -528,6 +534,7 @@ table.joint-list td.symbols{ font-family:"Consolas",monospace; font-size:17px; f
 .csv-stage-table tr.csv-bh td{ background:rgba(240,106,99,.06); }
 .csv-stage-table tr.csv-colhit td{ background:rgba(90,160,255,.10); }   /* 柱DB流用: 淡い青地 */
 /* 使用符号: 符号のみ表示・使用階はホバー(title)で表示。階ありの符号は点線下線で示す */
+.sym-mark{ white-space:nowrap; }                 /* 各符号は途中で改行しない（区切りの・でのみ折返す） */
 .sym-mark.has-floor{ border-bottom:1px dotted currentColor; cursor:help; }
 .sym-sep{ opacity:.5; padding:0 1px; }
 /* 仮決定モーダルのアクション: 反映・閉じるを同サイズで大きく・右下に配置(右=反映,左=閉じる) */

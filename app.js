@@ -5,6 +5,7 @@ let dialogRows = [];         // 継手参照で現在ロード中の断面候補
 let hBuckets = [];           // 追加shape: 選択中の H 100刻みバケット（複数可）
 let bBuckets = [];           // 追加shape: 選択中の B 100刻みバケット（複数可）
 let multiMode = true;        // デフォルト ON
+let showFloors = false;      // 選択中リストで使用階を常時表示するか（既定OFF=ホバー表示）
 const currentFmt = "dxf";    // 出力は DXF のみ
 let materials = [];          // facets material
 let facets = {};             // JointData.facets() の結果（reset時のピル再生成に使用）
@@ -61,6 +62,7 @@ async function init() {
   if (lk) lk.onclick = () => { localStorage.removeItem("jl_pw"); location.reload(); };
   applyMultiUI(false);  // デフォルトで単体選択
   bind();
+  updateShowFloorsBtn();
   renderList();
   buildShapeToggles();  // H/B 100刻みトグルを生成
   refreshShapes();
@@ -144,6 +146,7 @@ function bind() {
   $("bhCalcModal").addEventListener("click", (e) => {
     if (e.target === $("bhCalcModal")) closeBHCalc();
   });
+  $("btnShowFloors").onclick = toggleShowFloors;
   $("btnBulkHead").onclick = toggleBulkHead;
   $("btnSortSize").onclick = () => { sortBySize(); renderList(); };
   $("btnClear").onclick = () => { selection = []; renderList(); };
@@ -579,12 +582,23 @@ function marksToText(marks) {
 
 // 使用符号セル/インライン: 符号だけ表示し、使用階は title（ホバー）で表示。
 //   marks: [{mark, floor}]。floor があれば点線下線＋ツールチップで階を出す。
-function symbolsHtml(marks) {
+// marks:[{mark,floor}] → HTML。
+//  withFloors=true : 「符号 (階)」を1単位(.sym-unit=nowrap)で常時表示（階が途中で分断されない）。
+//  withFloors=false(既定): 符号のみ表示＋使用階はホバー(title)。
+// いずれも「・」直後の <wbr>（改行可能点）で符号単位に折り返す（符号が多くても横スクロールしない）。
+function symbolsHtml(marks, withFloors) {
   if (!marks || !marks.length) return "";
+  const sep = `<span class="sym-sep">・</span><wbr>`;
+  if (withFloors) {
+    return marks.map((m) => {
+      const label = m.floor ? `${m.mark} (${m.floor})` : m.mark;
+      return `<span class="sym-unit">${esc(label)}</span>`;
+    }).join(sep);
+  }
   return marks.map((m) => {
     const t = m.floor ? ` title="${esc(m.floor)}"` : "";
     return `<span class="sym-mark${m.floor ? " has-floor" : ""}"${t}>${esc(m.mark)}</span>`;
-  }).join(`<span class="sym-sep">・</span>`);
+  }).join(sep);
 }
 
 function onCsvSelected(e) {
@@ -655,7 +669,7 @@ function renderCsvStage() {
     }
     if (s.status === "col_bolt_na") {
       return `<tr class="csv-boltna">${head(" disabled")}${bolts("—", "—")}`
-        + `<td class="csv-status csv-info">梁DBに無し／柱DBは在: ${esc(av())}（ボルト径の変更で流用可）</td></tr>`;
+        + `<td class="csv-status csv-info">梁DBに無く柱DBに在: ${esc(av())}（径変更で流用可）</td></tr>`;
     }
     return `<tr class="csv-bh">${head(" disabled")}${bolts("—", "—")}`
       + `<td class="csv-status csv-ng">BH材のため検討が必要です</td></tr>`;
@@ -836,10 +850,10 @@ function refBadgesHtml(r) {
   return parts.length ? `<div class="ref-badges">${parts.join("")}</div>` : "";
 }
 
-// 選択中リストの使用符号: CSV由来は {mark,floor} で符号のみ表示＋使用階はホバー。
+// 選択中リストの使用符号: CSV由来は {mark,floor}。「使用階」ボタン(showFloors)で階の常時表示を切替。
 // 旧履歴など symbolList が無いデータは従来の文字列(symbols)をそのまま表示。
 function symbolsInline(r) {
-  if (r.symbolList && r.symbolList.length) return symbolsHtml(r.symbolList);
+  if (r.symbolList && r.symbolList.length) return symbolsHtml(r.symbolList, showFloors);
   return r.symbols ? esc(r.symbols) : "";
 }
 
@@ -1024,6 +1038,19 @@ function updateBulkHeadBtn() {
   btn.disabled = elig.length === 0;
   const allSH = elig.length > 0 && elig.every((r) => String(r.head || "H").toUpperCase() === "SH");
   btn.textContent = allSH ? "全てHに" : "全てSHに";
+}
+
+// ===== 使用階の常時表示トグル（選択中リスト）=====
+// 既定OFF=符号のみ表示＋階はホバー。ON=「符号 (階)」を常時表示。
+function toggleShowFloors() {
+  showFloors = !showFloors;
+  updateShowFloorsBtn();
+  renderList();
+}
+function updateShowFloorsBtn() {
+  const btn = $("btnShowFloors");
+  if (!btn) return;
+  btn.setAttribute("aria-pressed", String(showFloors));
 }
 
 // ===== プレビュー =====
