@@ -11,7 +11,7 @@
   --bg:#2b2f36; --panel:#2b2f36; --panel2:#242830; --field:#2b2f36;
   --nm-light:#353b45; --nm-dark:#1c1f25;
   --text:#eaeff6; --muted:#8b95a4; --accent:#e3b341; --accent2:#8fb4ec;
-  --line:#31363f; --grid:#3fb950; --sel:#8fb4ec26; --danger:#f06a63;
+  --line:#31363f; --grid:#3fb950; --sel:#8fb4ec26; --danger:#f06a63; --info:#5aa0ff;
   --thead:#262b33; --thead2:#22262d; --prevbg:#242830;
   --badge-line:#3a4150; --badge-tx:#9fcfff;
   --tline:#3a4150;
@@ -341,6 +341,10 @@ table.joint-list tr.drop-after td{box-shadow:inset 0 -3px 0 0 var(--accent2)}
   border-radius:9px; padding:9px 0; font-size:13px; color:var(--muted); min-height:38px; box-shadow:var(--sh-out-sm);}
 .cad-fmt-pills button.active{color:var(--accent2); font-weight:700; background:var(--sel); box-shadow:var(--sh-in-sm);}
 .cad-info{font-size:11px; color:var(--muted); margin-bottom:12px;}
+/* 保存先を選択（チェック）: 大きめで読みやすく・周囲になじむフラット（埋め込み影なし）。 */
+.cad-pickdir{display:flex; align-items:center; gap:9px; cursor:pointer; user-select:none;
+  font-size:15px; font-weight:700; color:var(--text); margin:6px 0 12px;}
+.cad-pickdir input{width:18px; height:18px; margin:0; cursor:pointer; flex:0 0 auto; accent-color:var(--accent2);}
 .save-input{background:var(--field); color:var(--text); border:none;
   border-radius:9px; padding:9px 12px; width:100%; margin-bottom:12px; min-height:38px;
   font-size:12px; font-weight:600; box-shadow:var(--sh-in-sm);}
@@ -429,7 +433,7 @@ table.joint-list tr.drop-after td{box-shadow:inset 0 -3px 0 0 var(--accent2)}
   --bg:#e4e9f0; --panel:#e4e9f0; --panel2:#dae0ea; --field:#e4e9f0;
   --nm-light:#ffffff; --nm-dark:#b7c1d0;
   --text:#2a3442; --muted:#8b97a8; --accent:#b07d1e; --accent2:#4d72b0;
-  --line:#d0d7e2; --grid:#2e7d32; --sel:#4d72b01f; --danger:#d9534a;
+  --line:#d0d7e2; --grid:#2e7d32; --sel:#4d72b01f; --danger:#d9534a; --info:#2f6fd6;
   --thead:#dae0ea; --thead2:#d2d9e5; --prevbg:#dbe1ea;
   --badge-line:#c3ccdb; --badge-tx:#1f4e9c;
   --tline:#cdd5e1;
@@ -517,8 +521,15 @@ table.joint-list td.symbols{ font-family:"Consolas",monospace; font-size:17px; f
 .csv-ok{ color:var(--grid); font-weight:700; }
 .csv-warn{ color:var(--accent); font-weight:700; }
 .csv-ng{ color:var(--danger); font-weight:700; }
+.csv-info{ color:var(--info); font-weight:700; }
+/* 状態列は1行表示（折り返さない）。使用階をホバー化した分、横幅に余裕が出る */
+.csv-stage-table td.csv-status{ white-space:nowrap; }
 .csv-stage-table tr.csv-boltna td{ background:rgba(227,179,65,.09); }
 .csv-stage-table tr.csv-bh td{ background:rgba(240,106,99,.06); }
+.csv-stage-table tr.csv-colhit td{ background:rgba(90,160,255,.10); }   /* 柱DB流用: 淡い青地 */
+/* 使用符号: 符号のみ表示・使用階はホバー(title)で表示。階ありの符号は点線下線で示す */
+.sym-mark.has-floor{ border-bottom:1px dotted currentColor; cursor:help; }
+.sym-sep{ opacity:.5; padding:0 1px; }
 /* 仮決定モーダルのアクション: 反映・閉じるを同サイズで大きく・右下に配置(右=反映,左=閉じる) */
 .csv-actions{ justify-content:flex-end; align-items:center; gap:12px; margin-top:4px; }
 .csv-actions button{ font-size:16px; padding:16px 34px; min-height:58px; border-radius:14px; }

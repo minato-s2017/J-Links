@@ -397,6 +397,7 @@ function onBhCalcPrint() {
 // 列: 符号,使用階,継手種別,母材鋼種,H,B,t_w,t_f,断面サイズ（UTF-8 BOM）
 let csvStaged = [];
 let csvLastRows = [];       // 直近パースしたCSV行（ボルト径変更で再グループ用）
+let csvLastFileName = "";   // 直近取込んだCSVのファイル名（履歴ラベル用）
 let csvBoltMode = "auto";   // "auto"(M20→無ければM22) / "M16".."M24"
 
 function _splitCsvLine(line) {
@@ -444,30 +445,46 @@ function parseCsvText(text) {
   return { rows, error: null };
 }
 
-// (種別,H,B,tw,tf) をカタログ(DB)照合し 3状態を返す:
-//   {status:"hit", row, bolt}      … 断面あり＋選択ボルト径あり（採用可）
-//   {status:"bolt_na", availBolts} … 断面はあるが選択ボルト径の値だけ無い（BH材ではない）
-//   {status:"bh"}                  … 断面自体がカタログに無い（＝BH材・要検討）
-// memberType = "beam"(大梁) / "column"(柱)。柱は柱カタログ、梁は梁カタログで照合する。
+// (種別,H,B,tw,tf) をカタログ(DB)照合し 状態を返す:
+//   {status:"hit", row, bolt}          … 自種別に断面あり＋選択ボルト径あり（採用可）
+//   {status:"bolt_na", availBolts}     … 自種別に断面はあるが選択ボルト径だけ無い（BH材ではない）
+//   {status:"col_hit", row, bolt}      … 大梁で梁DBに断面が無く、柱DBに在り＋選択径あり（柱継手を流用）
+//   {status:"col_bolt_na", availBolts} … 大梁で梁DBに断面が無く、柱DBに在るが選択径だけ無い（径変更で流用可）
+//   {status:"bh"}                      … 梁にも柱にも断面が無い（＝BH材・要検討）
+// memberType = "beam"(大梁) / "column"(柱)。柱は柱DB・梁は梁DBで照合。
+// 柱は軸力を考慮するぶん継手性能が高い＝安全側のため、梁DBに無い断面のみ柱DBへフォールバックする
+// （逆＝柱→梁のフォールバックは行わない）。
 function catalogLookup(memberType, H, B, tw, tf, material) {
   const want = `${H}x${B}x${tw}x${tf}`.replace(/\s/g, "").toLowerCase();
   const matchShape = (rows) => (rows || []).filter(
     (r) => String(r.shape || "").replace(/\s/g, "").toLowerCase() === want);
-  const search = (bolt) => {
-    try { return JointData.search({ grade: "F10T", type: memberType, material, bolt }); }
+  const searchType = (type, bolt) => {
+    try { return JointData.search({ grade: "F10T", type, material, bolt }); }
     catch (e) { return { rows: [] }; }
   };
-  // ① 選択ボルト径(auto=M20→無ければM22)で照合
+  const boltsOf = (type) => [...new Set(matchShape(searchType(type, undefined).rows)
+    .map((r) => r.bolt_size).filter(Boolean))];
+  // 選択ボルト径(auto=M20→無ければM22)
   const bolts = (csvBoltMode === "auto") ? ["M20", "M22"] : [csvBoltMode];
+  // ① 自種別＋選択ボルト径で照合
   for (const bolt of bolts) {
-    const hit = matchShape(search(bolt).rows)[0];
+    const hit = matchShape(searchType(memberType, bolt).rows)[0];
     if (hit) return { status: "hit", row: hit, bolt };
   }
-  // ② 断面自体がカタログに在るか（ボルト径を問わず）
-  const availBolts = [...new Set(matchShape(search(undefined).rows)
-    .map((r) => r.bolt_size).filter(Boolean))];
-  if (availBolts.length) return { status: "bolt_na", availBolts };  // 断面は在る／選択径だけ無い
-  return { status: "bh" };                                          // 断面が無い＝BH材
+  // ② 自種別に断面が在るか（ボルト径を問わず）＝断面は在る／選択径だけ無い
+  const availBolts = boltsOf(memberType);
+  if (availBolts.length) return { status: "bolt_na", availBolts };
+  // ③ 大梁のみ: 梁DBに断面が無い → 柱DB(高性能=安全側)を流用
+  if (memberType === "beam") {
+    for (const bolt of bolts) {
+      const chit = matchShape(searchType("column", bolt).rows)[0];
+      if (chit) return { status: "col_hit", row: chit, bolt };
+    }
+    const colBolts = boltsOf("column");
+    if (colBolts.length) return { status: "col_bolt_na", availBolts: colBolts };
+  }
+  // ④ 梁にも柱にも無い＝真のBH材
+  return { status: "bh" };
 }
 
 // CSVの母材鋼種を正準グレードへ正規化する。
@@ -502,6 +519,8 @@ function csvMemberType(rawType) {
 }
 
 // CSV行 → (種別,断面H,B,tw,tf,確定グレード)でグループ化＋使用符号集約＋カタログ照合
+// 使用符号は {mark:符号, floor:使用階} の構造で保持（floor は符号ホバー時に表示するため分離）。
+// 同一符号が同グループ内で複数行に分かれても、使用階トークンをまとめて1つに集約する。
 function buildCsvStage(csvRows) {
   const groups = new Map();
   for (const r of csvRows) {
@@ -513,40 +532,66 @@ function buildCsvStage(csvRows) {
     const key = `${memberType}|${r.H}|${r.B}|${r.tw}|${r.tf}|${grade}`;  // 種別×断面×確定グレードでグループ化
     if (!groups.has(key)) {
       groups.set(key, { memberType, H: r.H, B: r.B, tw: r.tw, tf: r.tf, cls,
-        material: grade, marks: [] });
+        material: grade, markOrder: [], markFloors: new Map() });   // markFloors: 符号→使用階トークン配列
     }
     const g = groups.get(key);
-    const _fl = String(r.floor || "").trim();
-    const _lab = !r.mark ? "" : (_fl ? `${r.mark} (${/^\d+$/.test(_fl) ? _fl + "FL" : _fl})` : r.mark);
-    if (_lab && !g.marks.includes(_lab)) g.marks.push(_lab);  // CSVは符号順＝そのまま
+    const mark = String(r.mark || "").trim();
+    if (!mark) continue;                                       // 符号なし行は集約対象外（断面グループ自体は残る）
+    if (!g.markFloors.has(mark)) { g.markFloors.set(mark, []); g.markOrder.push(mark); }  // CSVは符号順
+    const arr = g.markFloors.get(mark);
+    for (let tok of String(r.floor || "").split("・")) {       // 使用階は「・」区切りで複数入る場合がある
+      tok = tok.trim();
+      if (!tok) continue;
+      if (/^\d+$/.test(tok)) tok += "FL";                      // 数字のみ→「NFL」。R/GL/PH 等はそのまま
+      if (!arr.includes(tok)) arr.push(tok);
+    }
   }
   const staged = [];
   for (const g of groups.values()) {
+    const marks = g.markOrder.map((m) => ({ mark: m, floor: g.markFloors.get(m).join("・") }));
     const lk = catalogLookup(g.memberType, g.H, g.B, g.tw, g.tf, g.material);
     staged.push({
       memberType: g.memberType,                // "beam" | "column"
       typeLabel: g.memberType === "column" ? "柱" : "大梁",
-      symbols: g.marks.join("・"),
+      symbolList: marks,                        // [{mark, floor}] — floor はホバー表示用
+      symbols: marksToText(marks),              // 「符号 (階)・…」の完全文字列（履歴・後方互換用）
       shapeStr: `H-${g.H}x${g.B}x${g.tw}x${g.tf}`,
       material: g.material,
-      status: lk.status,                       // "hit" | "bolt_na" | "bh"
-      hit: lk.status === "hit",
+      status: lk.status,                        // "hit" | "col_hit" | "bolt_na" | "col_bolt_na" | "bh"
+      adoptable: lk.status === "hit" || lk.status === "col_hit",   // 採用可（チェックできる）
+      fromColumn: lk.status === "col_hit",      // 梁DBに無く柱DBの継手を流用
       bolt: lk.bolt || null, row: lk.row || null,
       availBolts: lk.availBolts || null,
       _h: parseFloat(g.H) || 0, _b: parseFloat(g.B) || 0,
     });
   }
-  // 柱→大梁 の順、状態(一致→径のみ無→BH材)、各内はサイズ順
-  const rank = (s) => (s.status === "hit" ? 0 : (s.status === "bolt_na" ? 1 : 2));
+  // 柱→大梁 の順、状態(一致→柱DB流用→径のみ無→BH材)、各内はサイズ順
+  const rank = (s) => ({ hit: 0, col_hit: 1, bolt_na: 2, col_bolt_na: 3, bh: 4 }[s.status] ?? 5);
   const tOrder = (s) => (s.memberType === "column" ? 0 : 1);
   staged.sort((a, b) => (tOrder(a) - tOrder(b)) || (rank(a) - rank(b)) || (a._h - b._h) || (a._b - b._b));
   return staged;
+}
+
+// {mark, floor} 配列 → 「符号 (階)・符号 (階)…」の完全文字列
+function marksToText(marks) {
+  return (marks || []).map((m) => (m.floor ? `${m.mark} (${m.floor})` : m.mark)).join("・");
+}
+
+// 使用符号セル/インライン: 符号だけ表示し、使用階は title（ホバー）で表示。
+//   marks: [{mark, floor}]。floor があれば点線下線＋ツールチップで階を出す。
+function symbolsHtml(marks) {
+  if (!marks || !marks.length) return "";
+  return marks.map((m) => {
+    const t = m.floor ? ` title="${esc(m.floor)}"` : "";
+    return `<span class="sym-mark${m.floor ? " has-floor" : ""}"${t}>${esc(m.mark)}</span>`;
+  }).join(`<span class="sym-sep">・</span>`);
 }
 
 function onCsvSelected(e) {
   const file = e.target.files && e.target.files[0];
   e.target.value = "";                                  // 同じファイルを再選択できるように
   if (!file) return;
+  csvLastFileName = file.name || "";
   const reader = new FileReader();
   reader.onload = () => {
     try {
@@ -573,54 +618,70 @@ function rebuildCsvStage() {
 }
 
 function renderCsvStage() {
-  const nHit = csvStaged.filter((s) => s.status === "hit").length;
-  const nBoltNa = csvStaged.filter((s) => s.status === "bolt_na").length;
-  const nBh = csvStaged.filter((s) => s.status === "bh").length;
+  const cnt = (st) => csvStaged.filter((s) => s.status === st).length;
+  const nHit = cnt("hit"), nColHit = cnt("col_hit");
+  const nBoltNa = cnt("bolt_na") + cnt("col_bolt_na");
+  const nBh = cnt("bh");
   const nCol = csvStaged.filter((s) => s.memberType === "column").length;
   const nBeam = csvStaged.filter((s) => s.memberType === "beam").length;
   $("csvSummary").innerHTML =
     `全 <b>${csvStaged.length}</b> 断面（柱 ${nCol} / 大梁 ${nBeam}）　`
     + `<span class="csv-ok">カタログ一致 ${nHit}</span>　`
+    + (nColHit ? `<span class="csv-info">柱DB流用 ${nColHit}</span>　` : "")
     + `<span class="csv-warn">径カタログ無 ${nBoltNa}</span>　`
     + `<span class="csv-ng">BH材(要検討) ${nBh}</span>`;
   $("csvStageBody").innerHTML = csvStaged.map((s, i) => {
-    const head = (ck) =>
-      `<td class="csv-ck"><input type="checkbox" class="csv-chk" data-i="${i}"${ck}></td>`
-      + `<td class="csv-sym">${esc(s.symbols || "—")}</td>`
+    const head = (attrs) =>
+      `<td class="csv-ck"><input type="checkbox" class="csv-chk" data-i="${i}"${attrs}></td>`
+      + `<td class="csv-sym">${symbolsHtml(s.symbolList) || "—"}</td>`
       + `<td class="csv-type">${esc(s.typeLabel)}</td>`
       + `<td class="csv-shape">${esc(s.shapeStr)}</td>`
       + `<td>${esc(s.material)}</td>`;
+    const bolts = (fb, wb) => `<td class="csv-bolt">${esc(fb)}</td><td class="csv-bolt">${esc(wb)}</td>`;
+    const av = () => (s.availBolts && s.availBolts.length) ? s.availBolts.join("・") : "—";
     if (s.status === "hit") {
-      const fb = (s.row && s.row.f_bolt) ? s.row.f_bolt : "—";
-      const wb = (s.row && s.row.w_bolt) ? s.row.w_bolt : "—";
       return `<tr class="csv-hit">${head(" checked")}`
-        + `<td class="csv-bolt">${esc(fb)}</td><td class="csv-bolt">${esc(wb)}</td>`
-        + `<td class="csv-ok">カタログ一致</td></tr>`;
+        + bolts((s.row && s.row.f_bolt) || "—", (s.row && s.row.w_bolt) || "—")
+        + `<td class="csv-status csv-ok">カタログ一致</td></tr>`;
+    }
+    if (s.status === "col_hit") {   // 梁DB無→柱DB流用: 採用可だが既定OFF（青字で明示）
+      return `<tr class="csv-colhit">${head("")}`
+        + bolts((s.row && s.row.f_bolt) || "—", (s.row && s.row.w_bolt) || "—")
+        + `<td class="csv-status csv-info">梁DBに無いため柱DBの継手を流用</td></tr>`;
     }
     if (s.status === "bolt_na") {
-      const av = (s.availBolts && s.availBolts.length) ? s.availBolts.join("・") : "—";
-      return `<tr class="csv-boltna">${head(" disabled")}`
-        + `<td class="csv-bolt">—</td><td class="csv-bolt">—</td>`
-        + `<td class="csv-warn">この径のカタログ値なし（在: ${esc(av)}）</td></tr>`;
+      return `<tr class="csv-boltna">${head(" disabled")}${bolts("—", "—")}`
+        + `<td class="csv-status csv-warn">この径のカタログ値なし（在: ${esc(av())}）</td></tr>`;
     }
-    return `<tr class="csv-bh">${head(" disabled")}`
-      + `<td class="csv-bolt">—</td><td class="csv-bolt">—</td>`
-      + `<td class="csv-ng">BH材のため検討が必要です</td></tr>`;
+    if (s.status === "col_bolt_na") {
+      return `<tr class="csv-boltna">${head(" disabled")}${bolts("—", "—")}`
+        + `<td class="csv-status csv-info">梁DBに無し／柱DBは在: ${esc(av())}（ボルト径の変更で流用可）</td></tr>`;
+    }
+    return `<tr class="csv-bh">${head(" disabled")}${bolts("—", "—")}`
+      + `<td class="csv-status csv-ng">BH材のため検討が必要です</td></tr>`;
   }).join("");
   $("csvStageBody").querySelectorAll(".csv-chk").forEach((chk) => { chk.onchange = updateCsvSelCount; });
   if ($("csvBolt")) $("csvBolt").value = csvBoltMode;
-  $("csvCheckAll").checked = nHit > 0;
   updateCsvSelCount();
 }
 
 function updateCsvSelCount() {
-  const n = $("csvStageBody").querySelectorAll(".csv-chk:checked").length;
-  $("csvSelCount").textContent = n;
-  $("csvReflect").disabled = n === 0;
+  // 反映件数は全チェック（カタログ一致＋個別に採用した柱DB流用）を数える
+  const checked = $("csvStageBody").querySelectorAll(".csv-chk:checked").length;
+  $("csvSelCount").textContent = checked;
+  $("csvReflect").disabled = checked === 0;
+  const all = $("csvCheckAll");
+  if (all) {   // ヘッダの全選択はカタログ一致(hit)のみを対象に三態表示（柱DB流用は含めない）
+    const autos = [...$("csvStageBody").querySelectorAll("tr.csv-hit .csv-chk")];
+    const on = autos.filter((c) => c.checked).length;
+    all.checked = autos.length > 0 && on === autos.length;
+    all.indeterminate = on > 0 && on < autos.length;
+  }
 }
 
 function toggleCsvAll(on) {
-  $("csvStageBody").querySelectorAll(".csv-chk:not(:disabled)").forEach((chk) => { chk.checked = on; });
+  // 「全選択」はカタログ一致(hit)のみ対象。柱DB流用(col_hit)は青字の説明を確認のうえ意識的に個別採用する。
+  $("csvStageBody").querySelectorAll("tr.csv-hit .csv-chk").forEach((chk) => { chk.checked = on; });
   updateCsvSelCount();
 }
 
@@ -628,12 +689,17 @@ function reflectCsv() {
   const rows = [];
   $("csvStageBody").querySelectorAll(".csv-chk:checked").forEach((c) => {
     const s = csvStaged[parseInt(c.dataset.i, 10)];
-    if (s && s.hit && s.row) rows.push({ ...s.row, symbols: s.symbols });
+    if (s && s.adoptable && s.row) {
+      // fromColumn は「柱DB流用」バッジ表示用。type は柱のまま保持し、編集(条件変更)も柱DBで成立させる。
+      rows.push({ ...s.row, symbols: s.symbols, symbolList: s.symbolList, fromColumn: !!s.fromColumn });
+    }
   });
   if (!rows.length) { setMsg("反映する断面を選択してください", true); return; }
   addRows(rows);
+  pushCsvHistory(rows);   // CSV取込を復元可能な履歴として保存
   closeCsvStage();
-  setMsg(`${rows.length} 断面を選択中リストへ反映しました`);
+  const nCol = rows.filter((r) => r.fromColumn).length;
+  setMsg(`${rows.length} 断面を選択中リストへ反映しました` + (nCol ? `（うち柱DB流用 ${nCol}）` : ""));
 }
 
 // ===== selection =====
@@ -759,6 +825,7 @@ function valCell(key, value, markKind) {
 
 function refBadgesHtml(r) {
   // 条件選択（type/material/grade/bolt）をフィルタと同じ色で表示（青/赤/緑/黄）
+  // ※ 柱DB流用の明示は「仮決定」モーダルで行う（リストでは通常の種別バッジのみ）。
   const parts = [];
   if (r.type)      parts.push(`<span class="badge b-type">${esc(r.type)}</span>`);
   if (r.material)  parts.push(`<span class="badge b-mat">${esc(r.material)}</span>`);
@@ -767,6 +834,13 @@ function refBadgesHtml(r) {
   // データ実体の family（SH/BH）はバッジで明示（H統合表示でも元がSHと分かるように）
   if (r.family && String(r.family).toUpperCase() !== "H") parts.push(`<span class="badge b-fam">${esc(r.family)}</span>`);
   return parts.length ? `<div class="ref-badges">${parts.join("")}</div>` : "";
+}
+
+// 選択中リストの使用符号: CSV由来は {mark,floor} で符号のみ表示＋使用階はホバー。
+// 旧履歴など symbolList が無いデータは従来の文字列(symbols)をそのまま表示。
+function symbolsInline(r) {
+  if (r.symbolList && r.symbolList.length) return symbolsHtml(r.symbolList);
+  return r.symbols ? esc(r.symbols) : "";
 }
 
 function renderList() {
@@ -784,7 +858,7 @@ function renderList() {
           <button class="edit" data-uid="${r._uid}" title="編集（条件選択の変更）">✎</button>
           <button class="del" data-uid="${r._uid}" title="削除">✕</button>
         </div></td>
-        <td class="symbols">${r.symbols ? esc(r.symbols) : ""}</td>
+        <td class="symbols">${symbolsInline(r)}</td>
         <td class="section">${secMark}${esc(r.section || "")}${refBadgesHtml(r)}</td>
         <td class="remarks"><input type="text" data-uid="${r._uid}" value="${rem}" placeholder="備考"></td>
       </tr>`;
@@ -910,7 +984,9 @@ function saveEdit() {
                     material: dispMat, bolt: sel.bolt_size, shape: r.shape }).rows) || [];
     const nr = nrows.find((x) => x.shape === r.shape);
     if (!nr) { setMsg("この断面はこの条件には存在しません", true); return; }
-    selection[i] = { ...nr, _uid: r._uid, remarks: r.remarks };   // 継手値ごと差し替え・_uid/備考は保持
+    // 継手値ごと差し替え。_uid/備考、および使用符号(symbols/symbolList)・柱DB流用フラグは断面固有の情報なので保持。
+    selection[i] = { ...nr, _uid: r._uid, remarks: r.remarks,
+      symbols: r.symbols, symbolList: r.symbolList, fromColumn: r.fromColumn };
     r = selection[i];
   }
   // 頭マーク（SH実体のみ）
@@ -1103,6 +1179,20 @@ function autoSnapshotHistory(label) {
   pushHistoryItem(label);
   if (!$("historyModal").classList.contains("hidden")) renderHistoryList();
 }
+// CSV取込を復元可能な履歴として保存（反映した断面群を1エントリに。復元で丸ごと呼び出せる）。
+function pushCsvHistory(rows) {
+  if (!rows || !rows.length) return;
+  const list = loadHistory();
+  list.unshift({
+    ts: new Date().toISOString(),
+    label: "CSV取込" + (csvLastFileName ? `: ${csvLastFileName}` : ""),
+    proj: $("projName").value.trim() || "",
+    rows: rows.map((r) => ({ ...r })),   // 反映した断面（そのまま復元可能）
+    csv: true,                            // 履歴一覧で 📄 表示に使う
+  });
+  saveHistory(list);
+  if (!$("historyModal").classList.contains("hidden")) renderHistoryList();
+}
 
 function openHistory() { $("historyModal").classList.remove("hidden"); renderHistoryList(); }
 function closeHistory() { $("historyModal").classList.add("hidden"); }
@@ -1130,7 +1220,8 @@ function renderHistoryList() {
     const tsStr = `${dt.getFullYear()}/${pad(dt.getMonth()+1)}/${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
     const projLabel = it.proj ? `[${esc(it.proj)}] ` : "";
     const sampleShape = (it.rows[0] && it.rows[0].section) || "";
-    const desc = `${projLabel}${esc(it.label)} ・ ${it.rows.length}件 ・ 例: ${esc(sampleShape)}`;
+    const icon = it.csv ? "📄 " : "";
+    const desc = `${projLabel}${icon}${esc(it.label)} ・ ${it.rows.length}件 ・ 例: ${esc(sampleShape)}`;
     return `<div class="hist-item">
       <div class="hist-item-info">
         <div class="hist-item-ts">${tsStr}</div>

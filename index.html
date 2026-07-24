@@ -8,7 +8,7 @@
 <link rel="icon" href="icon/favicon.ico?v=lynx3" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="icon/favicon-32.png?v=lynx3">
 <link rel="apple-touch-icon" href="icon/apple-touch-icon.png?v=lynx3">
-<link rel="stylesheet" href="style.css?v=nm14">
+<link rel="stylesheet" href="style.css?v=nm15">
 <script>try{var t=localStorage.getItem('joint_list_theme');document.documentElement.setAttribute('data-theme',t==='dark'?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}</script>
 </head>
 <body>
@@ -204,7 +204,7 @@
         <input id="projName" placeholder="(任意)"></div>
       <div class="cad-info">出力形式: <b>DXF</b>（データのみ）／レイヤ: TEXT・DEFPOINTS</div>
       <input id="saveFolder" type="text" class="save-input" placeholder="保存先(任意・サーバ側パス)" style="display:none">
-      <label class="cad-pickdir" title="ONにすると保存ダイアログでフォルダを選べます（Chrome/Edge。未対応ブラウザは通常のダウンロード）" style="display:flex;align-items:center;gap:6px;font-size:12px;margin:4px 0;cursor:pointer;user-select:none"><input type="checkbox" id="chkPickFolder" style="width:auto;margin:0"> 保存先を選ぶ（Chrome/Edge）</label>
+      <label class="cad-pickdir" title="ONにすると保存ダイアログでフォルダを選べます（Chrome/Edge。未対応ブラウザは通常のダウンロード）"><input type="checkbox" id="chkPickFolder"> 保存先を選択</label>
       <button id="btnDownload" class="cad-out-btn" disabled>選択した <span id="outCount">0</span> 件を出力 ↗</button>
       <button id="btnSave" class="ghost small fullw" disabled style="display:none">サーバへ保存</button>
       <div id="msg" class="msg"></div>
@@ -341,7 +341,7 @@
         <table id="csvStageTable" class="csv-stage-table">
           <thead>
             <tr>
-              <th class="csv-ck"><input type="checkbox" id="csvCheckAll" title="採用可を全選択/解除"></th>
+              <th class="csv-ck"><input type="checkbox" id="csvCheckAll" title="カタログ一致を全選択/解除（柱DB流用は個別に選択）"></th>
               <th>使用符号</th>
               <th>種別</th>
               <th>断面</th>
@@ -364,6 +364,6 @@
 
 <script src="joint_data.js?v=e1fix"></script>
 <script src="bh_design.js?v=bh2"></script>
-<script src="app.js?v=csv9"></script>
+<script src="app.js?v=csv10"></script>
 </body>
 </html>
