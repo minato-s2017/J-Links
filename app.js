@@ -1216,7 +1216,7 @@ function pushCsvHistory(rows) {
     label: "CSV取込" + (csvLastFileName ? `: ${csvLastFileName}` : ""),
     proj: $("projName").value.trim() || "",
     rows: rows.map((r) => ({ ...r })),   // 反映した断面（そのまま復元可能）
-    csv: true,                            // 履歴一覧で 📄 表示に使う
+    csv: true,                            // CSV取込エントリの識別用フラグ
   });
   saveHistory(list);
   if (!$("historyModal").classList.contains("hidden")) renderHistoryList();
@@ -1248,8 +1248,7 @@ function renderHistoryList() {
     const tsStr = `${dt.getFullYear()}/${pad(dt.getMonth()+1)}/${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
     const projLabel = it.proj ? `[${esc(it.proj)}] ` : "";
     const sampleShape = (it.rows[0] && it.rows[0].section) || "";
-    const icon = it.csv ? "📄 " : "";
-    const desc = `${projLabel}${icon}${esc(it.label)} ・ ${it.rows.length}件 ・ 例: ${esc(sampleShape)}`;
+    const desc = `${projLabel}${esc(it.label)} ・ ${it.rows.length}件 ・ 例: ${esc(sampleShape)}`;
     return `<div class="hist-item">
       <div class="hist-item-info">
         <div class="hist-item-ts">${tsStr}</div>
