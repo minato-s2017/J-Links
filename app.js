@@ -17,7 +17,7 @@ const HIST_KEY = "joint_list_history";
 const HIST_MAX = 20;
 // ビルド版数（ヘッダに表示）。EXE 再ビルドのたびに更新し、起動中のEXEが新旧どちらかを
 // 一目で判別できるようにする。旧版は「最終更新 X月Y日(=今日)」表示なので様式自体が異なる。
-const APP_BUILD = "2026-07-10s";
+const APP_BUILD = "2026-07-24s";
 // 材質グレード（データの SN400/SN490 を表示・マーク用に細分。6種を1列表示）
 const MATERIAL_GRADES = ["SS400", "SN400B", "SM490A", "SN490B"];
 const DEFAULT_MATERIAL = "SS400";
@@ -1071,7 +1071,8 @@ function doPreview() {
   body.innerHTML = selection.map((r) => {
     const mark = effectiveMark(r);
     const letter = r.mark_letter || "B";
-    const secInner = (mark !== "none" ? `<span class="prev-mark ${mark}">${esc(letter)}</span>` : "") + esc(r.section || "");
+    // マーク無し(SS400=none)でも幅を確保(.none は visibility:hidden)し、断面テキストの頭位置を全行そろえる
+    const secInner = `<span class="prev-mark ${mark}">${esc(letter)}</span>` + esc(r.section || "");
     const nm = (r.N || r.M) ? `${esc(r.N || "")}&nbsp;&nbsp;${esc(r.M || "")}` : "—";
     return `<tr>
       <td class="sec">${secInner}</td>

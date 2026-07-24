@@ -109,7 +109,7 @@ button.accent{background:var(--bg); color:var(--accent); font-weight:700; box-sh
 
 /* ===== 3カラムレイアウト（寸法は現行維持） ===== */
 .main3{display:grid; gap:18px; padding:8px 18px 18px;
-  grid-template-columns:460px minmax(0,1fr) 380px;
+  grid-template-columns:460px minmax(0,1fr) 440px;   /* 右(CAD)列を拡張＝説明文を1行表示 */
   align-items:start;}
 .col{background:var(--bg); border:none; border-radius:var(--radius); padding:20px;
   display:flex; flex-direction:column; min-width:0; box-shadow:var(--sh-out);}
@@ -218,7 +218,7 @@ table.joint-list thead th{background:transparent; color:var(--accent2); font-wei
 table.joint-list th.grp{color:var(--muted)}
 table.joint-list .seccol{min-width:200px; text-align:left}
 table.joint-list .actcol{width:132px}
-table.joint-list .remcol{min-width:130px}
+table.joint-list .remcol{width:230px; min-width:130px}   /* 備考は左に詰める（広がりすぎないよう幅を抑制） */
 table.joint-list .sublbl{font-size:10px; color:var(--muted); font-weight:normal}
 
 /* 参照条件 badge（淡い凹chip＋機能色文字） */
