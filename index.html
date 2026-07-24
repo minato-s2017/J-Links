@@ -49,7 +49,7 @@
       <input id="csvFile" type="file" accept=".csv,text/csv" hidden>
       <button id="btnCsvImport" type="button" class="primary fullw csv-btn">Revit CSV を取込</button>
     </div>
-    <input id="searchBox" type="search" class="search-input" placeholder="手動検索（例: 400x200）">
+    <input id="searchBox" type="search" class="search-input" placeholder="手動検索（例: 400x200）" autocomplete="off">
 
     <div class="seg" role="tablist">
       <button class="seg-btn active" data-mode="ref" role="tab" aria-selected="true">継手参照</button>
@@ -97,13 +97,13 @@
       <div class="frow">
         <label>検索: Shape</label>
         <div class="shape-search">
-          <input id="d_h" type="text" inputmode="decimal" placeholder="H">
+          <input id="d_h" type="text" inputmode="decimal" placeholder="H" autocomplete="off">
           <span class="x-sep">×</span>
-          <input id="d_b" type="text" inputmode="decimal" placeholder="B">
+          <input id="d_b" type="text" inputmode="decimal" placeholder="B" autocomplete="off">
           <span class="x-sep">×</span>
-          <input id="d_tw" type="text" inputmode="decimal" placeholder="t_w">
+          <input id="d_tw" type="text" inputmode="decimal" placeholder="t_w" autocomplete="off">
           <span class="x-sep">×</span>
-          <input id="d_tf" type="text" inputmode="decimal" placeholder="t_f">
+          <input id="d_tf" type="text" inputmode="decimal" placeholder="t_f" autocomplete="off">
         </div>
       </div>
 
